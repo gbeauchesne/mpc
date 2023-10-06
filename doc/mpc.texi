@@ -1103,7 +1103,7 @@ The branch cut of @code{mpc_acosh} is
 @cindex Modular functions
 
 The following function is experimental, not least because it depends on
-the equally experimental ball arithmetic, see @ref {Ball Arithmetic}.
+the equally experimental ball arithmetic, see @ref{Ball Arithmetic}.
 So its prototype may change in future releases, and it may be removed
 altogether.
 
@@ -1246,10 +1246,10 @@ with the usual trick in the GNU multiprecision libraries of defining the
 main type @code{mpcr_t} as a 1-dimensional array of this struct, and
 variable and constant pointers @code{mpcr_ptr} and @code{mpcr_srcptr}.
 It can contain the special values infinity or zero, or floating point
-numbers encoded as @math{m⋅2@sup{e}} for a positive mantissa
+numbers encoded as @math{m⋅2^{e}} for a positive mantissa
 @math{m} and an arbitrary (usually negative) exponent @math{e}.
 Normalised finite radii use 31 bits for the mantissa, that is,
-@math{2@sup{30}≤m≤2@sup{31} - 1}.
+@math{2^{30}≤m≤2^{31} - 1}.
 The special values infinity and 0 are encoded through the sign of
 @math{m}, but should be tested for and set using dedicated functions.
 
@@ -1294,7 +1294,7 @@ than any finite real number.
 @deftypefunx void mpcr_set (mpcr_ptr @var{r}, mpcr_srcptr @var{s})
 @deftypefunx void mpcr_set_ui64_2si64 (mpcr_ptr @var{r}, uint64_t @var{mant}, int64_t @var{exp})
 Set @var{r} to infinity, zero, 1, @var{s} or
-@var{mant}⋅2@sup{@var{exp}}, respectively.
+@var{mant}⋅@math{2^{@var{exp}}}, respectively.
 @end deftypefun
 
 
@@ -1305,8 +1305,8 @@ Set @var{r} to the maximum of @var{s} and @var{t}.
 
 @deftypefun int64_t mpcr_get_exp (mpcr_srcptr @var{r})
 Assuming that @var{r} is neither infinity nor 0, return its exponent
-@math{e} when writing @math{r = m⋅2@sup{e}} with
-@math {1/2 ≤ m < 1}. (Notice that this is @emph{not} the same as the
+@math{e} when writing @math{r = m⋅2^{e}} with
+@math{1/2 ≤ m < 1}. (Notice that this is @emph{not} the same as the
 field @code{exp} in the struct representing a radius, but that instead it
 is independent of the implementation.)
 Otherwise the behaviour is undefined.
@@ -1329,8 +1329,8 @@ behaviour will probably change in the future.
 @deftypefunx void mpcr_sqr (mpcr_ptr @var{r}, mpcr_srcptr @var{s})
 @deftypefunx void mpcr_sqrt (mpcr_ptr @var{r}, mpcr_srcptr @var{s})
 Set @var{r} to the sum, difference, product or quotient of @var{s} and
-@var{t}, or to the product of @var{s} by 2@sup{@var{t}} or to the
-quotient of @var{s} by 2@sup{@var{t}},
+@var{t}, or to the product of @var{s} by @math{2^{@var{t}}} or to the
+quotient of @var{s} by @math{2^{@var{t}}},
 or to the square or the square root of @var{s}.
 If any of the arguments is infinity, or if a difference is negative,
 the result is infinity.
@@ -1357,8 +1357,8 @@ in direction @var{rnd}, which may be one of @code{MPFR_RNDU} or
 
 
 @deftypefun void mpcr_add_rounding_error (mpcr_ptr @var{r}, mpfr_prec_t @var{p}, mpfr_rnd_t @var{rnd})
-Set @var{r} to @math{r + (1 + r) 2@sup{-p}} if @var{rnd} equals
-@code{MPFR_RNDN}, and to @math{r + (1 + r) 2@sup{1-p}} otherwise.
+Set @var{r} to @math{r + (1 + r) 2^{-p}} if @var{rnd} equals
+@code{MPFR_RNDN}, and to @math{r + (1 + r) 2^{1-p}} otherwise.
 The idea is that if a (potentially not representable) centre of an ideal
 complex ball of radius @var{r} is rounded to a representable complex
 number at precision @var{p}, this shifts the centre by up to 1/2 ulp
@@ -1461,7 +1461,7 @@ through further computations.
 @end deftypefun
 
 
-@deftypefun void mpcb_set_c (mpcb_ptr @var{z}, mpc_srcptr @var{c}, mpfr_prec_t @var{prec}, unsigned long int @var{err_re}, unsigned long int @var {err_im})
+@deftypefun void mpcb_set_c (mpcb_ptr @var{z}, mpc_srcptr @var{c}, mpfr_prec_t @var{prec}, unsigned long int @var{err_re}, unsigned long int @var{err_im})
 Set @var{z} to a ball with centre @var{c} at precision @var{prec}.
 If @var{prec} is at least the maximum of the precisions of the real and the
 imaginary parts of @var{c} and @var{err_re} and @var{err_im} are 0, then
@@ -1504,7 +1504,7 @@ when using appropriate values for @var{err_re} and @var{err_im}.
 @end deftypefun
 
 
-@deftypefun void mpcb_set_ui_ui (mpcb_ptr @var{z}, unsigned long int @var{re}, unsigned long int @var {im}, mpfr_prec_t @var{prec})
+@deftypefun void mpcb_set_ui_ui (mpcb_ptr @var{z}, unsigned long int @var{re}, unsigned long int @var{im}, mpfr_prec_t @var{prec})
 Set @var{z} to a ball with centre @var{re}+I*@var{im} at precision
 @var{prec} or the size of an @code{unsigned long int}, whatever is larger.
 @end deftypefun
@@ -1564,7 +1564,7 @@ direction value cannot be determined.
 @deftypefun int mpcb_round (mpc_ptr @var{c}, mpcb_srcptr @var{z}, mpc_rnd_t @var{rnd})
 Set @var{c} to the centre of @var{z}, rounded in direction @var{rnd},
 and return the corresponding rounding direction value.
-If @code{mpcb_can_round}, called with @var {z}, the precisions of @var{c}
+If @code{mpcb_can_round}, called with @var{z}, the precisions of @var{c}
 and the rounding mode @var{rnd} returns @code{true}, then this function
 does what is expected, it ``correctly rounds the ball'' and returns a
 rounding direction value that is valid for all of the ball.
