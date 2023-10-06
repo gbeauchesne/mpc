@@ -1,4 +1,4 @@
-\documentclass [12pt]{article}
+\documentclass [11pt]{article}
 
 \usepackage[a4paper]{geometry}
 \usepackage[utf8]{inputenc}
@@ -8,6 +8,8 @@
 \usepackage{hyperref}
 \usepackage{comment}
 \usepackage[notref,notcite]{showkeys}
+\usepackage{graphicx}
+\usepackage{tikz}
 
 \newcommand {\corr}[1]{{#1}}
 \newcommand {\appro}[1]{\widetilde {#1}}
@@ -17,28 +19,35 @@
 \newcommand {\Ulp}{{\operatorname {ulp}}}
 \DeclareMathOperator{\Exp}{\operatorname {Exp}}
 \newcommand {\atantwo}{\operatorname {atan2}}
+\newcommand {\asin}{\operatorname {asin}}
 \newcommand{\error}{\operatorname {error}}
 \newcommand{\relerror}{\operatorname {relerror}}
 \newcommand{\Norm}{\operatorname {N}}
 \newcommand {\round}{\operatorname {\circ}}
 \DeclareMathOperator{\pinf}{\bigtriangleup}
 \DeclareMathOperator{\minf}{\bigtriangledown}
-\DeclareMathOperator{\N}{\mathcal N}
 \DeclareMathOperator{\A}{\mathcal A}
+\newcommand {\N}{\mathbb N}
 \newcommand {\Z}{\mathbb Z}
 \newcommand {\Q}{\mathbb Q}
 \newcommand {\R}{\mathbb R}
+\newcommand {\C}{\mathbb C}
 \renewcommand {\epsilon}{\varepsilon}
 \renewcommand {\theta}{\vartheta}
 \renewcommand {\leq}{\leqslant}
 \renewcommand {\geq}{\geqslant}
+\newcommand {\AGM}{\operatorname{AGM}}
+\newcommand {\sign}{\operatorname{sign}}
+\newcommand {\Sl}{\operatorname{Sl}}
+\newcommand {\diff}{\mathrm {d}}
 
 \newtheorem{theorem}{Theorem}
 \newtheorem{lemma}[theorem]{Lemma}
 \newtheorem{definition}[theorem]{Definition}
 \newtheorem{prop}[theorem]{Proposition}
 \newtheorem{conj}[theorem]{Conjecture}
-\newenvironment{proof}{\noindent{\bf Proof:}}{{\hspace* {\fill}$\blacksquare$}}
+\newenvironment{proof}{\noindent \textbf {Proof:}}{{\hspace* {\fill}$\blacksquare$}}
+\newenvironment{remark}{\noindent \textit {Remark:}}{}
 
 \newcommand {\enumi}[1]{(\alph {#1})}
 \renewcommand {\labelenumi}{\enumi {enumi}}
@@ -47,7 +56,7 @@
 
 \title {MPC: Algorithms and Error Analysis}
 \author {Andreas Enge \and Philippe Th\'eveny \and Paul Zimmermann}
-\date {Draft; June 28, 2012}
+\date {Draft; November 21, 2022}
 
 \begin {document}
 \maketitle
@@ -72,21 +81,29 @@ several elementary arithmetic operations.
 
 \begin {definition}
 \label {def:exp}
-Let $x$ be a real number, which can be written uniquely as
+Let $x$ be a non-zero real number, which can be written uniquely as
 $x = m \cdot 2^e$ with $\frac{1}{2} \le |m| < 1$.
 The {\em exponent} of $x$ is
 $\Exp(x) = e = \lfloor \log_2 |x| \rfloor + 1$.
 The number is {\em representable at precision~$p$} if
 $2^p m$ is an integer.
-We denote the rounding of $x$ to one of the at most two representable
-numbers in the open interval $(x - 2^{-p}, x + 2^{-p})$ by
+If $x$ is representable, there is no other representable number in the
+open interval $(x - 2^{e-p}, x + 2^{e-p})$; otherwise there are two
+representable numbers in the interval.
+We denote the rounding of $x$ to one of them by
 $\round (x) = \round_p (x)$, with rounding being to nearest, up, down,
 towards zero or away from zero if there is a choice.
 \end {definition}
 
+The real number~$0$ does not fit into this framework; it is considered
+representable at any precision, so that it is never changed by rounding.
+Conversely, notice that no non-zero number is ever rounded to~$0$.
+One could define $\Exp(0) = -\infty$, and most of the following results
+would still hold.
+
 \begin {prop}
 \label {prop:expmuldiv}
-If $x_1$ and $x_2$ are two real numbers, then
+If $x_1$ and $x_2$ are two non-zero real numbers, then
 \begin {gather*}
 \Exp (x_1) + \Exp (x_2) - 1 \leq \Exp (x_1 x_2) \leq \Exp (x_1) + \Exp (x_2),
 \\
@@ -109,7 +126,7 @@ $\frac {1}{2} < \frac {m_1}{m_2} < 2$.
 
 \begin {prop}
 \label {prop:expround}
-For any real number $x$,
+For any non-zero real number $x$,
 \[
 \Exp (x) \leq \Exp (\round (x)) \leq \Exp (x) + 1,
 \]
@@ -126,7 +143,7 @@ since these two numbers are representable (independently of the precision).
 
 \begin {definition}
 \label {def:ulp}
-Let $x$ be a real number which is representable at precision~$p$.
+Let $x$ be a non-zero real number which is representable at precision~$p$.
 Its associated {\em unit in the last place} is
 $\Ulp(x) = \Ulp_p (x) = 2^{\Exp(x) - p}$, so that adding $\Ulp(x)$ to $x$
 corresponds to adding~$1$ to the integer $2^p m$.
@@ -192,9 +209,9 @@ to infinity, and $c_X \leq \frac {1}{2}$ when $\round$ stands for
 rounding to nearest.
 Then, via Proposition~\ref {prop:expround},
 \[
-\error (\round (\appro x)) \leq (k_R + c_R) \Ulp (\appro x)
+\error (\round (\appro x)) \leq (k_R + c_R) \Ulp (\round (\appro x))
 \text { and }
-\error (\round (\appro y)) \leq (k_I + c_I) \Ulp (\appro y).
+\error (\round (\appro y)) \leq (k_I + c_I) \Ulp (\round (\appro y)).
 \]
 
 
@@ -206,7 +223,7 @@ but relatively as multiplicative factors (close to~$1$).
 
 \begin {definition}
 \label {def:relerror}
-Given a real number $\corr x$ and its approximation $\appro x$,
+Given a real number $\corr x$ and its non-zero approximation $\appro x$,
 we define the {\em upper relative error} of $\appro x$ by
 \[
 \relerror^+ (\appro x) = \epsilon^+
@@ -226,7 +243,7 @@ The {\em relative error} of $\appro x$ is
 
 Notice that $\epsilon^- = 0$ whenever $\appro x \leq \corr x$ and
 $\epsilon^+ = 0$ whenever $\appro x \geq \corr x$, so that at least one of
-$\epsilon^+$ and $\epsilon^-$ is zero. We express relative errors with
+$\epsilon^+$ and $\epsilon^-$ is~$0$. We express relative errors with
 respect to the approximate value; thus, they define an interval around
 the approximate value containing the correct one. Precisely,
 $\corr x = \appro x (1 + \vartheta)$ for some number $\theta$ with
@@ -243,7 +260,7 @@ it is easy to switch back and forth between absolute and relative errors.
 
 \begin {prop}
 \label {prop:relerror}
-Let $\appro x$ be representable at precision $p$.
+Let $\appro x$ be a non-zero real number representable at precision $p$.
 \begin {enumerate}
 \item
 If $\error (\appro x) \leq k \Ulp (\appro x)$,
@@ -299,17 +316,27 @@ the complex relative error, and vice versa.
 
 \begin {prop}
 \label {prop:comrelerror}
-Let $\corr z = \corr x + i \corr y$, $\appro z = \appro x + i \appro y$,
+Let $\corr z = \corr x + i \corr y$,
+$\appro z = \appro x + i \appro y \neq 0$,
 $\epsilon = \relerror (\appro z)$,
-$\epsilon_R = \relerror (\appro x)$ and
-$\epsilon_I = \relerror (\appro y)$. Then
+$\epsilon_R = \relerror (\appro x)$ if $\appro x \neq 0$ and
+$\epsilon_I = \relerror (\appro y)$ if $\appro y \neq 0$. Then
 \begin {align*}
 \epsilon_R
-&\leq \left( 1 + 2^{\Exp (\appro y) - \Exp (\appro x) + 1} \right) \epsilon, \\
+&\leq \left( 1 + 2^{\Exp (\appro y) - \Exp (\appro x) + 1} \right) \epsilon
+\text { if } \appro x \neq 0, \\
 \epsilon_I
-&\leq \left( 1 + 2^{\Exp (\appro x) - \Exp (\appro y) + 1} \right) \epsilon, \\
+&\leq \left( 1 + 2^{\Exp (\appro x) - \Exp (\appro y) + 1} \right) \epsilon
+\text { if } \appro y \neq 0, \\
 \epsilon
-&\leq \max \left( \epsilon_R, \epsilon_I \right).
+&\leq \left\{
+\begin {array}{l}
+\max \left( \epsilon_R, \epsilon_I \right)
+\text { if } \appro x, \appro y \neq 0 \\
+\epsilon_R \text { if } \appro x \neq 0 \text { and } \corr y = \appro y \\
+\epsilon_I \text { if } \appro y \neq 0 \text { and } \corr x = \appro x
+\end {array}
+\right.
 \end {align*}
 \end {prop}
 
@@ -337,6 +364,69 @@ For the converse direction, write
 = \frac {\epsilon_R^2 \appro x^2 + \epsilon_I^2 \appro y^2}{\appro x^2 + \appro y^2}
 \leq \max \left( \epsilon_R^2, \epsilon_I^2 \right).
 \]
+when $\appro x, \appro y \neq 0$, and similar expressions in the
+other cases.
+\end {proof}
+
+As a corollary to Propositions~\ref {prop:relerror}
+and~\ref {prop:comrelerror}, we obtain the following result that shows how
+to transform absolute into complex relative errors.
+
+\begin {prop}
+\label {prop:comabstorelerror}
+Let $\appro z = \appro x + i \appro y \neq 0$ be representable
+at precision~$p$.
+Assume that there is a non-negative integer~$k$ such that the following
+two assertions hold:
+\begin {itemize}
+\item
+$\appro x \neq 0$ and $\error (\appro x) \leq k \, \Ulp (\appro x)$,
+or $\appro x = \corr x$;
+\item
+$\appro y \neq 0$ and $\error (\appro y) \leq k \, \Ulp (\appro y)$,
+or $\appro y = \corr y$.
+\end {itemize}
+Then
+\[
+\relerror (\appro z) \leq k \, 2^{1-p}.
+\]
+As in Proposition~\ref {prop:relerror}, there is an immediate generalisation
+if $\appro z$ is not representable at precision~$p$.
+\end {prop}
+
+Adding the improbable cases that $\appro x = \corr x$ and
+$\appro y = \corr y$ to Propositions~\ref {prop:comrelerror}
+and~\ref {prop:comabstorelerror} may look overly pedantic; but it is
+helpful to analyse how rounding affects complex relative errors.
+
+\begin {prop}
+\label {prop:comrelround}
+Let $\appro z \neq 0$ and $\relerror (\appro z) = \epsilon$.
+Then
+\[
+\relerror (\round (\appro z)) \leq
+\epsilon + c (1 + \epsilon) 2^{1-p},
+\]
+where $c = \frac {1}{2}$ if both the real and the imaginary part are
+rounded to nearest, and $c = 1$ otherwise.
+\end {prop}
+
+\begin {proof}
+Write $\corr z = \corr x + i \corr y = (1 + \theta) \appro z$
+with $|\theta| = \epsilon$.
+Notice that by the remark after Definition~\ref {def:exp}, either
+$\appro x$ and $\corr x$ are both~$0$, or none of them is~$0$ and the
+rounding error is bounded by~$c \, \Ulp (\appro x)$, and the same holds
+for~$\appro y$ and~$\corr y$.
+So we can apply
+Proposition~\ref {prop:comabstorelerror} with $\appro z$ in the
+place of $\corr z$, $\round (\appro z)$ in the place of $\appro z$
+and $c$ in the place of~$k$, and
+there is a $\theta'$ with $\appro z = (1 + \theta') \round (\appro z)$
+and $|\theta'| \leq c \, 2^{1-p}$.
+So $\corr z = (1 + \theta'') \round (\appro z)$ with
+$\theta'' = (1 + \theta)(1 + \theta') - 1
+= \theta + \theta' (1 + \theta)$.
 \end {proof}
 
 
@@ -346,6 +436,39 @@ In this section, we derive for later use results on error propagation for
 functions with real arguments and values. Those already contained in
 \cite{MPFRAlgorithms} are simply quoted for the sake of self-containedness.
 
+
+\subsubsection {Multiplication}
+\label {sssec:proprealmul}
+
+Let
+\[
+\appro x = \appro {x_1} \appro {x_2}.
+\]
+Then
+\begin {eqnarray*}
+\error (\appro x)
+& = & \left| \corr {x_1} \corr {x_2} - \appro {x_1} \appro {x_2} \right|
+= \left|   (\corr {x_1} - \appro {x_1}) (\corr {x_2} - \appro {x_2})
+         + (\corr {x_1} - \appro {x_1}) \appro {x_2}
+         + (\corr {x_2} - \appro {x_2}) \appro {x_1}
+         \right| \\
+& \leq & |\epsilon_1 \epsilon_2 + \epsilon_1 + \epsilon_2|
+      \cdot \left| \appro {x_1} \appro {x_2} \right|
+= |\epsilon_1 \epsilon_2 + \epsilon_1 + \epsilon_2| \cdot |\appro x|,
+\end {eqnarray*}
+using the notation introduced in Definition~\ref {def:relerror} together
+with the obvious subscripts to the~$\epsilon$.
+By the estimation of the relative error in terms of the absolute error of
+Proposition~\ref {prop:relerror} and using
+$|\appro x| \leq 2^{\Exp (\appro x)}$, this leads to
+\begin {equation}
+\label {eq:proprealmul}
+\error (\appro x)
+\leq \left( 2 (k_1 + k_2) + k_1 k_2 2^{2-p} \right)
+   2^{\Exp (\appro x) - p}.
+\end {equation}
+This is a quick derivation of the same bound as in
+\cite[\S2.4]{MPFRAlgorithms}.
 
 
 \subsubsection {Division}
@@ -416,7 +539,7 @@ Let
 \[
 \appro x = \sqrt {\appro {x_1}}.
 \]
-Then by \cite[\S1.7]{MPFRAlgorithms},
+Then by \cite[\S2.7]{MPFRAlgorithms},
 \begin {equation}
 \label {eq:proprealsqrt}
 \error (\appro x)
@@ -447,12 +570,39 @@ Taking the exponents into account, one obtains
 \label {eq:proprealcos}
 \error (\appro x)
 \leq
-k \, 2^{\Exp (\appro {x_1}) - \Exp (\appro x)}
+k_1 \, 2^{\Exp (\appro {x_1}) - \Exp (\appro x)}
 \, 2^{\Exp (\appro x) - p}.
 \end {equation}
 
 For the sine function, a completely analogous argument shows that
 \eqref {eq:proprealcos} also holds.
+
+
+\subsubsection {Exponential}
+\label {sssec:proprealexp}
+
+Let
+\[
+\appro x = \exp (\appro {x_1})
+\]
+for $\appro {x_1} \neq 0$, of the same sign as $\corr {x_1}$ and  with
+$\error (\appro {x_1}) \leq k_1 \Ulp (\appro {x_1})$.
+Assume furthermore that $\appro {x_1} \geq \corr {x_1}$, that is, it has
+been obtained by consistently rounding up.
+Then by the mean value theorem there is a $\xi$ with
+$\corr {x_1} \leq \xi \leq \appro {x_1}$ such that
+\[
+\relerror {\appro x}
+= \frac {e^\xi \error (\appro {x_1})}{\appro x}
+\leq \error (\appro {x_1})
+\leq k_1 2^{\Exp (\appro {x_1}) - p}.
+\]
+By Proposition~\ref {prop:relerror} this implies
+\begin {equation}
+\label {eq:proprealexp}
+\error (\appro x)
+\leq k_1 \, 2^{\Exp (\appro {x_1})} \, 2^{\Exp (\appro x) - p}.
+\end {equation}
 
 
 \subsubsection {Logarithm}
@@ -474,23 +624,24 @@ For $x_1 > 0$, this implies
 \error (\appro x)
 & \leq & \error (\appro {x_1})
 \leq
-k \, 2^{\Exp (\appro {x_1}) - \Exp (\appro x)}
+k_1 \, 2^{\Exp (\appro {x_1}) - \Exp (\appro x)}
 \, 2^{\Exp (\appro x) - p} \\
-& \leq & 2 \, k \, \frac {\appro {x_1}}{\appro x} \, 2^{\Exp (\appro x) - p} \\
-& \leq & 2 \, k \, \frac {\appro {x_1}}{\appro {x_1} - \appro {x_1}^2/2}
+& \leq & 2 \, k_1 \, \frac {\appro {x_1}}{\appro x} \, 2^{\Exp (\appro x) - p} \\
+& \leq & 2 \, k_1 \, \frac {\appro {x_1}}{\appro {x_1} - \appro {x_1}^2/2}
 \, 2^{\Exp (\appro x) - p}
 \end {eqnarray*}
 using $\log (1 + z) \geq z - z^2/2$ for $z > 0$.
 For $0 < x_1 \leq 1$, we have $\appro {x_1}^2/2 \leq \appro {x_1}/2$ and
 \[
 \error (\appro x)
-\leq 4 \, k \, 2^{\Exp (\appro x) - p}.
+\leq 4 \, k_1 \, 2^{\Exp (\appro x) - p}.
 \]
 
 
 \subsection {Complex functions}
 
 \subsubsection {Addition/subtraction}
+\label {sssec:propadd}
 
 Using the notation introduced above, we consider
 \[
@@ -517,7 +668,7 @@ exponent than the operands, that is, if cancellation occurs.
 If $\appro {x_1}$ and $\appro {x_2}$, have the same sign, then there
 is no cancellation, $d_{R, n} \leq 0$ and
 \[
-\error (\appro x) \leq (k_{R,1} + k_{R,2} + c_R) 2^{\Exp (\appro x) - p}.
+\error (\appro x) \leq (k_{R,1} + k_{R,2}) 2^{\Exp (\appro x) - p}.
 \]
 
 An analogous error bound holds for the imaginary part.
@@ -525,6 +676,51 @@ An analogous error bound holds for the imaginary part.
 For subtraction, the same bounds are obtained, except that the simpler bound
 now holds whenever $\appro {x_1}$ and $\appro {x_2}$ resp.
 $\appro {y_1}$ and $\appro {y_2}$ have different signs.
+
+We obtain a useful result for complex relative errors when $z_1$ and $z_2$
+lie in the same quadrant, so that cancellation occurs neither for the real
+nor for the imaginary part.
+
+\begin {lemma}
+\label {lm:arithgeom}
+Let $c_1 = a_1 + i b_1$ and $c_2 = a_2 + i b_2$ lie in the same quadrant,
+that is, $a_1 a_2$, $b_1 b_2 \geq 0$. Then
+\[
+|c_1| + |c_2| \leq \sqrt 2 \cdot |c_1 + c_2|.
+\]
+\end {lemma}
+
+\begin {proof}
+One readily verifies that
+\[
+2 |c_1 + c_2|^2 - (|c_1| + |c_2|)^2
+= (|c_1| - |c_2|)^2 + 4 (a_1 a_2 + b_1 b_2)
+\geq 0
+\]
+\end {proof}
+
+Assume now that $\corr {z_n} = (1 + \theta_n) \appro {z_n}$ for $n=1,2$
+with $\epsilon_n = |\theta_n|$ lie in the same quadrant.
+Then
+$\corr z = (1 + \theta) \appro z$
+with
+\[
+\theta = \frac {\theta_1 \appro {z_1} + \theta_2 \appro {z_2}}
+               {\appro {z_1} + \appro {z_2}}.
+\]
+and
+\begin {equation}
+\label {eq:propaddrel}
+\relerror (\appro z)
+\leq
+\max (\epsilon_1, \epsilon_2)
+   \frac {|\appro {z_1}| + |\appro {z_2}|}{|\appro {z_1} + \appro {z_2}|}
+\leq
+\sqrt 2 \, \max (\epsilon_1, \epsilon_2)
+\end {equation}
+by Lemma~\ref {lm:arithgeom}.
+
+
 
 
 \subsubsection {Multiplication}
@@ -668,7 +864,11 @@ A coarser bound may be obtained more easily by considering complex
 relative errors. Write $\corr {z_n} = (1 + \theta_n) \appro {z_n}$
 with $\epsilon_n = | \theta_n |$. Then $\corr z = (1 + \theta) \appro z$
 with $\theta = \theta_1 + \theta_2 + \theta_1 \theta_2$ and
-$\epsilon = |\theta| \leq \epsilon_1 + \epsilon_2 + \epsilon_1 \epsilon_2$.
+\begin {equation}
+\label {eq:propmulrel}
+\epsilon = \relerror (\appro z)
+\leq \epsilon_1 + \epsilon_2 + \epsilon_1 \epsilon_2.
+\end {equation}
 By Proposition~\ref {prop:relerror},
 we have $\epsilon_{X, n} \leq k_{X, n} 2^{1-p}$ for $X \in \{ R, I \}$,
 and by Proposition~\ref {prop:comrelerror},
@@ -907,11 +1107,101 @@ we find the exact same error estimate \eqref {eq:propmulcomrel}
 also for the case of division.
 
 
-\subsubsection {Logarithm}
+\subsubsection {Square root}
+Let
+\[
+\appro z = \sqrt {\appro {z_1}}.
+\]
+Write $\corr {z_1} = (1 + \theta_1) \appro {z_1}$ with
+$\epsilon_1 = |\theta_1|$, and assume $\epsilon_1 < 1$.
+Then $\corr z = (1 + \theta) \appro z$ with
+\[
+\theta = \sqrt {1 + \theta_1} - 1
+= \frac {1}{2} \theta_1
++ \sum_{n=2}^\infty \frac {(-1)^{n+1} 1 \cdot 3 \cdots (2 n - 3)}{2^n \, n!}
+   \theta_1^n
+\]
+as a Taylor series, and
+\[
+\epsilon = |\theta|
+\leq
+\frac {1}{2}  \epsilon_1
++ \sum_{n=2}^\infty \frac {1 \cdot 3 \cdots (2 n - 3)}{2^n \, n!}
+\epsilon_1^n
+= 1 - \sqrt {1 - \epsilon_1}.
+\]
+By the mean value theorem, applied to the function $f (x) = \sqrt {1 - x}$,
+there is $0 < \xi < \epsilon_1$ with
+\begin {equation}
+\label {eq:propsqrt}
+\epsilon = \frac {1}{2 \sqrt {1 - \xi}} \, \epsilon_1
+\leq \frac {1}{2 \sqrt {1 - \epsilon_1}} \, \epsilon_1.
+\end {equation}
+For instance $\epsilon \leq \epsilon_1$ for $\epsilon_1 \leq \frac {3}{4}$.
+We even have $\epsilon \leq \epsilon_1$ for $\epsilon_1 \leq 1$,
+since $1 - \sqrt{1-x}$ is bounded by $x$
+for $0 < x \leq 1$, which comes from $1 - x \leq \sqrt{1-x}$.
+
+
+
+\section {Complex analysis}
+
+\begin {theorem}[Taylor expansion and remainder term]
+\label {th:taylor}
+Let $f : U \to \C$ be a holomorphic function on the open subset
+$U \subseteq \C$. Denote by $B = B (c, r) = \{ z \in \C : |z - c| < r \}$
+the open disk with centre~$c$ and radius~$r$, by
+$\overline B = \overline B (c, r) = \{ z \in \C : |z - c| \leq r \}$
+its closure, and by
+$\partial B = \partial B (c, r) = \{ z \in \C : |z - c| = r \}$
+its boundary. Assume that $\overline B \subseteq U$, and let $z \in B$.
+Let $M_r = \max\limits_{w \in \partial B} |f (w)|$,
+let $\beta$ be any real number such that $|z - c| / r \leq \beta < 1$,
+and let $N \geq 1$ be an integer. Then
+\[
+f (z) = f (c) + \sum_{n = 1}^N \frac {f^{(n)} (c)}{n!} (z - c)^n + R_N
+\text { with }
+|R_N| \leq M_r \, \frac {\beta^{N + 1}}{1 - \beta}.
+\]
+\end {theorem}
+\begin {proof}
+The Taylor series for $f$ is given by \cite [Theorem~16-8]{Apostol57} as
+\[
+f (z) = f (c) + \sum_{n = 1}^\infty \frac {f^{(n)} (c)}{n!} (z - c)^n
+\]
+under the sole assumption that $B \subseteq U$.
+Cauchy's integral formula gives the remainder term by
+\cite [Theorem~16-7]{Apostol57} as
+\[
+R_N = \sum_{n = N+1}^\infty \frac {f^{(n)} (c)}{n!} (z - c)^n
+= \sum_{n = N+1}^\infty \frac {(z - c)^n}{2 \pi i}
+\int\limits_{w \in \partial B} \frac {f (w)}{(w - c)^{n+1}} \, \diff w
+\]
+under the assumption that $\overline B \subseteq U$.
+So
+\[
+|R_N| \leq \sum_{n = N+1}^\infty \frac {|z - c|^n}{2 \pi}
+\int\limits_{w \in \partial B} \frac {M_r}{r^{n+1}} \, \diff w
+= M_r \sum_{n = N+1}^\infty \left( \frac {|z - c|}{r} \right)^n
+\leq M_r \sum_{n = N+1}^\infty \beta^n,
+\]
+and evaluating the geometric series yields the bound of the theorem.
+\end {proof}
+
+\begin {remark}
+The result probably still holds when $f$ is holomorphic only
+on~$B \subseteq U$ instead of on $\overline B$, assuming that it is at
+least continuous on $\partial B$ (in particular, it is not allowed to have
+a singularity on the boundary); a proof idea would be to apply the theorem
+for $r' < r$ and to take the limit $r' \to r$.
+We do not need such a result, and instead can apply this approach to upper
+bounds obtained in cases we are interested in.
+\end {remark}
 
 
 
 \section {Algorithms}
+\label {sec:algorithms}
 
 This section describes in detail the algorithms used in \mpc, together with
 the error analysis that allows to prove that the results are correct in the
@@ -936,21 +1226,59 @@ t + i w & \text {if } x < 0, y > 0 \\
 \right.
 \]
 
-We compute $w$ rounded down and thus round down all intermediate results.
-$\sqrt {x^2 + y^2}$ is computed with an error of \ulp{1}
-by a call to \texttt {mpc\_abs}; $|x|$ is added with an error of \ulp{1},
-since both terms are positive; division by~$2$ is free of error. So
-$w^2$ is computed with a cumulated error of \ulp{2}.
-This error of \ulp{2} propagates as is through the real square root:
-Since we rounded down the argument, we have $\epsilon_1^- = 0$ in
-\eqref {eq:proprealsqrt}; an error of \ulp{1} needs to be added for the
-rounding of $w$, so that the total error is \ulp{3}.
+Jeannerod and Muller prove in \cite{jeannerod:ensl-01780265} that the relative
+error of this algorithm --- with rounding to nearest ---
+is at most $\frac{5}{2} u$ for the real part, denoted
+$w$ here, and
+$\frac{7}{2} u$ for the imaginary part, denoted $t$ here,
+where $u = 2^{-p}$ and $p$ is the
+working precision.
+However, this is not sufficient to be able to compute the ternary value,
+for which a directed rounding is preferred.
+We thus reuse the error analysis of that paper using directed roundings.
 
-$t$ is rounded away. Plugging the error of \ulp{3} for $w$ and \ulp{0} for $y$ into
-\eqref {eq:proprealdiv} shows that the propagated error of real division is
-\ulp{6}, to which an additional rounding error of \ulp{1} has to be added
-for a total error of \ulp{7}.
+With the notations of \cite{jeannerod:ensl-01780265}, and denoting RD for
+rounding down (for $t > 0$), equation (5) becomes:
+\[ t (1 - \frac{2u}{1+2u}) \leq {\rm RD}(t) \]
+% \[ {\rm RU}(t) \leq t (1 + 2u), \]
+since --- assuming without loss of generality $1 \leq t < 2$ ---
+the worst case is when $t$ is just below ${\rm nextafter}(1) = 1+2u$.
+% and worst case for RU is attained for $t$ just above $1$.
+The same bounds apply both for additions and multiplications, as in equation (5)
+from \cite{jeannerod:ensl-01780265}, but also for the square root and division,
+as in equations (6) and (7).
+The lower bound $L'$ from equation (9) then becomes:
+\[ L' = (1 - \delta_d)^{5/2} \] % U' = (1 + \delta_u)^{5/2}
+with $\delta_d = 2u/(1+2u)$. % and $\delta_u = 2u$.
+% var('u')
+% delta_d = 2*u/(1+2*u); delta_u = 2*u
+% taylor((1-delta_d)^(5/2), u, 0, 3)
+% -105/2*u^3 + 35/2*u^2 - 5*u + 1
+% taylor((1+delta_u)^(5/2), u, 0, 3)
+% 5/2*u^3 + 15/2*u^2 + 5*u + 1
+It follows from a Taylor expansion of $L'$:
+\[ 1 - 5u \leq L'. \]
 
+Assume $x > 0$, let $w$ be the exact real part of
+$\sqrt{z}$, and $\hat{w}$ be the approximate value computed by
+Friedland's algorithm.
+We thus have $0 \leq w - \hat(w) \leq 5 u w$.
+We claim that this bound can be converted to
+$0 \leq w - \hat(w) \leq 10 \ulp(\hat(w))$.
+Assume $w$ is in the binade $[2^k,2^{k+1})$, then $\hat{w}$ is either in that
+binade or in $[2^{k-1},2^k)$.
+Since $\ulp(w) = 2^{k+1} \cdot u$, we thus have $\ulp(\hat{w}) \geq 2^k \cdot u$ in
+all cases, which yields $w - \hat(w) \leq 5 (w/2^k) \ulp(\hat{w}) \leq 10 \ulp(\hat{w})$.
+
+Thus the total error on $w$ is at most \ulp{10}.
+For the computation of $t$, assuming $y > 0$, we round upwards the division $y/(2w)$,
+which yields a relative error of at most $2u$, and thus:
+\[ \hat{t}/t \leq \frac{1 + \delta_u}{(1 - \delta_d)^{5/2}} = 1 + 7u + \frac{35}{2} u^2 + O(u^3), \]
+with $\delta_u = 2u$,
+which implies $\hat{t}/t \leq 1 + 8u$ for $p \geq 5$.
+% taylor((1+delta_u)/(1-delta_d)^(5/2), u, 0, 3)
+% 35/2*u^3 + 35/2*u^2 + 7*u + 1
+As above, this implies $\hat{t} - t \leq 16 \ulp(\hat{t})$.
 
 \subsection {\texttt {mpc\_log}}
 
@@ -1011,6 +1339,157 @@ k_R=\left\{
 \end{array}
 \right.
 \end{equation*}
+
+\subsection {\texttt {mpc\_asin}}
+
+Besides non-finite, real and purely imaginary arguments, we treat a few
+special cases separately to speed up the computations.
+
+\paragraph{Tiny imaginary part with $|\Re z| < 1/2$ and $|\Im z| < 1/4$.}
+The function $\asin z$ is holomorphic in $B (0, 1)$
+with derivative $1/\sqrt{1-z^2}$, so we can apply Theorem~\ref {th:taylor}
+with $N = 1$.
+Letting $z = x + i y \in B (0, 1)$, we take $c = x$, $0 < r < 1 - |x|$
+and $\beta = |y| / r$ and obtain
+\[
+\asin (x + i y) = \asin x + i \, \frac{y}{\sqrt {1 - x^2}} + R_1
+\]
+with
+\[
+|R_1| \leq M_r \frac {\beta^2}{1 - \beta}
+\leq \frac {\pi}{2} \cdot \frac {\beta^2}{1 - \beta}:
+\]
+Since the Taylor expansion of $\asin$ has positive real coefficents,
+we have $|\asin (z)| \leq \asin (|z|) < \pi / 2$ for $|z| < 1$.
+Letting $r$ tend to $1 - |x|$ in the above formula, we deduce that the
+bound on $|R_1|$ still holds for $\beta = |y| / (1 - |x|)$.
+
+We apply this to $|x| < 1/2$ and $|y| < 1/4$, which implies $|z| < 1$;
+then $\beta \leq 2 |y| < 1/2$, $1 / (1 - \beta) < 2$ and
+\[
+|R_1| < 4 \pi |y|^2 < 16 |y|^2.
+\]
+Notice that to be able to round the imaginary part of the result,
+which is close to $y$, the relative error should be bounded above by
+about $2^{-p}$, where $p$ is the precision; so $|y|$ must be smaller
+than about $2^{-p}$.
+
+
+\paragraph{Tiny imaginary part with real part $1$.}
+First, in case the real part of the argument is exactly $1$,
+for $0 \leq y \leq 1$, we have $|\Re \asin (1 \pm iy) - \pi/2|
+\leq y^{1/2}$, and $|\Im \asin (1 \pm iy) \mp y^{1/2}| \leq (1/12) y^{3/2}$.
+
+
+\paragraph{Small real and imaginary parts.}
+Formula 4.4.40 from \cite{AbSt73} gives for $|z| < 1$:
+\begin{equation} \label{eq_asin1}
+  \asin z = \sum_{k \geq 0} \frac{1 \times 3 \times \cdots \times (2k-1)}
+  {2 \times 4 \times \cdots \times (2k)} \frac{z^{2k+1}}{2k+1}.
+\end{equation}
+When $|\Re z|,|\Im z| \leq 2^{-e}$ with $e \geq 1$,
+we can use the following algorithm, with working precision $p$:
+\begin{verbatim}
+   w = o(z*z)
+   t = o(z)
+   s = o(z)
+   for k from 1 to K-1 do:
+      u = o(t * w)
+      v = o(u * ((2k-1) * (2k-1)))
+      t = o(v / ((2*k) * (2*k+1))
+      s = s + t
+\end{verbatim}
+We first prove by induction that at the end of the for loop with index $k$,
+we have (up to rounding errors):
+\[ t = \frac{1  \times 3 \times \cdots \times (2k-1)}
+  {2 \times 4 \times \cdots \times (2k)} \frac{z^{2k+1}}{2k+1}. \]
+This is easy and left to the reader.
+Then since $|\Re z|,|\Im z| \leq 2^{-e}$,
+we have $|\Re(w)|,|\Im(w)| \leq o(2^{1-2e}) = 2^{1-2e}$.
+
+Then we prove, still by induction, that at the end of the for loop with index
+$k$, we have $|\Re(t)|,|\Im(t)| \leq 2^{2k-(2k+1)e}$.
+This holds for $k=0$, i.e., at the beginning of the loop with $k=1$,
+since then $t$ is the rounding of $z$,
+thus $|\Re t|,|\Im t| \leq o(2^{-e}) = 2^{-e}$,
+since $2^{-e}$ is exactly representable.
+Now assume $|\Re(t)|,|\Im(t)| \leq 2^{2k-2-(2k-1)e}$ at the beginning of the
+loop with index $k$.
+Since $|\Re(w)|,|\Im(w)| \leq 2^{1-2e}$, we have after the first instruction
+in the loop: $|\Re(u)|, |\Im(u)| \leq 2^{2k-(2k+1)e}$. After the second
+instruction, we get $|\Re(v)|, |\Im(v)| \leq (2k-1)^2 \cdot 2^{2k-(2k+1)e}$,
+assuming $(2k-1)^2$ is exactly representable, which can be checked a
+posteriori. Since in the third instruction we divide by $(2k)(2k+1)$
+which is larger than $(2k-1)^2$, we get at the end of the loop with index $k$:
+$|\Re(t)|, |\Im(t)| \leq 2^{2k-(2k+1)e}$ as claimed.
+
+Now let $\varepsilon_k$ be the maximal absolute error on $\Re t, \Im t$ at the
+end of the loop with index~$k$.
+For $k=0$, i.e., at the beginning of the loop with $k=1$, we have
+$\varepsilon_0 = 2^{-e-p}$, since $t = o(z)$, and the error is at most
+$\frac{1}{2} \Ulp(z) \leq \frac{1}{2} \Ulp(2^{-e}) = 2^{-e-p}$.
+Now the absolute error on $u$ is bounded by:
+\[ {\rm err}(u) \leq \frac{1}{2} \Ulp(u) + 2 \varepsilon_{k-1} |w| + 2 |t| {\rm err}(w), \]
+where ${\rm err}(w)$ stands for the maximal absolute error on $w$ (i.e.,
+on its real and imaginary parts), the factors $2$ come from the fact
+that the real and imaginary parts of a product are a sum of two products,
+and $|x|$ is a shortcut for ${\rm max}(|\Re x|, |\Im x|)$.
+Since $|\Re u|, |\Im u| \leq 2^{2k-(2k+1)e}$, we have
+$\frac{1}{2} \Ulp(u) \leq 2^{2k-(2k+1)e-p}$;
+we also have $|w| \leq 2^{1-2e}$ and ${\rm err}(w) \leq \frac{1}{2}
+\Ulp(w) \leq 2^{1-2e-p}$. This gives:
+\[ {\rm err}(u) \leq 2^{2k+1-(2k+1)e-p} + 2^{2-2e} \varepsilon_{k-1}. \]
+For the second instruction of the loop:
+\[ {\rm err}(v) \leq \frac{1}{2} \Ulp(v) + (2k-1)^2 {\rm err}(u), \]
+and for the third one:
+\[ {\rm err}(t) \leq \frac{1}{2} \Ulp(t) + \frac{{\rm err}(v)}{(2k)(2k+1)}, \]
+thus:
+\[ \varepsilon_k \leq \frac{1}{2} \Ulp(t) +
+  \frac{1}{2(2k)(2k+1)} \Ulp(v) + \frac{(2k-1)^2}{(2k)(2k+1)} {\rm err}(u). \]
+For the first term of the right-hand side,
+$\frac{1}{2} \Ulp(t) \leq 2^{2k-(2k+1)e-p}$;
+the last one is bounded by ${\rm err}(u)$;
+using $|v| \leq (2k-1)^2 \cdot 2^{2k-(2k+1)e}$, and
+the rule $\Ulp(ab) < 2 |a| \Ulp(b)$,
+the middle one is bounded by
+\[ \frac{1}{2(2k)(2k+1)} \Ulp(v) \leq
+  \frac{(2k-1)^2}{(2k)(2k+1)} \Ulp(2^{2k-(2k+1)e})
+  \leq 2^{2k+1-(2k+1)e-p}. \]
+This yields:
+\[ \varepsilon_k \leq 2^{2k-(2k+1)e-p} + 2^{2k+1-(2k+1)e-p}
+  + 2^{2k+1-(2k+1)e-p} + 2^{2-2e} \varepsilon_{k-1}
+  \leq 5 \cdot 2^{2k-(2k+1)e-p} + 2^{2-2e} \varepsilon_{k-1}. \]
+We distinguish two cases: $e=1$ or $e \geq 2$.
+For $e=1$ we get:
+\[ \varepsilon_k \leq 5 \cdot 2^{-1-p} + \varepsilon_{k-1}, \]
+thus since $\varepsilon_0 = 2^{-1-p}$ we have
+$\varepsilon_k \leq (5k+1) 2^{-1-p}$.
+For $e \geq 2$, we have for $k \geq 1$:
+\[ \varepsilon_k \leq 5 \cdot 2^{-2-e-p} + \frac{1}{4} \varepsilon_{k-1}, \]
+and it follows easily $\varepsilon_k \leq \frac{5}{3} \cdot 2^{-e-p}$.
+
+Now the absolute error on $s$ at the end of the for loop --- not taking into
+account the mathematical error when truncating the Taylor series ---
+is bounded for $e=1$ by:
+\[ {\rm err}(s) \leq \sum_{k=0}^{K-1} (5k+1) 2^{-1-p} = \frac{(5K-3)K}{2} 2^{-1-p}, \]
+and for $e \geq 2$:
+\[ {\rm err}(s) \leq \sum_{k=0}^{K-1} \frac{5}{3} \cdot 2^{-e-p} =
+  \frac{5}{3} K 2^{-e-p}. \]
+
+Assume now that $|\Re z| \leq 2^{-e}$ and $|\Im z| \leq 2^{-e-\delta}$ with
+$e \geq 1$ and $\delta \geq 0$. All the above reasoning for the real parts still
+holds. For the imaginary parts, we have
+$|\Im w| \leq 2^{1-2e-\delta}$, and the bound on the imaginary part of $t$
+becomes $|\Im t| \leq 2^{2k-(2k+1)e-\delta}$.
+Now consider that $\varepsilon_k$ is the maximal absolute error on
+$\Im t$ only at the end of the loop with index~$k$.
+The initial value $\varepsilon_0$
+is multiplied by $2^{-\delta}$ compared to above,
+and since all the bounds on the imaginary
+parts are multiplied by $2^{-\delta}$ too, the same holds for the recurrence
+on $\varepsilon_k$ and their solutions. Thus the final error bound on
+$\Im s$ is multiplied by $2^{-\delta}$ too.
+
 
 \subsection {\texttt {mpc\_pow}}
 
@@ -1647,6 +2126,15 @@ the determined cases:
 where $\sigma_2$ (resp $\rho_1$, $\rho_2$) is the sign of $x_2$ (resp. $y_1$,
 $y_2$) and with the convention $0^0=+1$.
 
+FIXME: This misses the cases $(x_1 \pm x_1 i)^{y_1 + 0 i}$ for $y_1 \geq 2$
+even and $x_1 \neq 0$; the case (d)(ii) above applies when $x_2 > 0$, but
+misses $x_2 < 0$. In any case, the sign of the imaginary part
+(for $y_1$ divisible by~$4$)
+or the real part
+(for $y_1$ divisible by~$2$, but not by~$4$)
+cannot be determined.
+
+
 \subsection {\texttt {mpc\_pow\_ui}}
 \label {ssec:mpcpowui}
 
@@ -1763,7 +2251,1416 @@ Thus, assuming that $n 2^{-p} \leq 1$, the error estimates
 in the place of $n - 1$.
 
 
+\subsection {\texttt {mpc\_rootofunity}}
 
+Consider co-prime integers $n > 0$ and $k \geq 0$. We wish to compute
+the primitive $n$-th root of unity $e^{2 \pi i k / n}$.
+First, we compute $\pi$ with rounding to nearest and an absolute error
+of \ulp{0.5}. Using Proposition~\ref {prop:relerror} we obtain a relative
+error of $\relerror (\appro {\pi}) \leq 2^{-p}$ at precision~$p$, which
+would be enough for the following analysis. However, we can be a bit more
+precise, knowing the first few binary digits of $\pi$: As soon as $p \geq 7$,
+% for p=6, we get 25/8 < 201/2^6, for p=7 we get 101/32 > 201/2^6
+we have $201/2^6 \leq \appro {\pi}$, so
+\[
+\relerror (\appro {\pi})
+= \left| \frac {\appro {\pi} - \corr {\pi}}{\appro {\pi}} \right|
+\leq 0.637 \cdot 2^{-p}.
+\]
+Let $r$ be the (exact) rational number $2k/n$.
+Next we compute
+$\appro {t} = \round (r \appro {\pi})$, as an approximation to
+$\corr {t} = r \pi$, rounded to nearest.
+Its absolute error is bounded as follows:
+\begin {align*}
+| \appro {t} - \corr {t} |
+& \leq |r \appro {\pi} - r \corr {\pi}| + 0.5 \, \Ulp (\appro {t}) \\
+& =  |r \appro {\pi} / \appro {t}| \cdot |\appro {t}|
+     \cdot |(\appro {\pi} - \corr {\pi}) / \appro {\pi}|
+     + 0.5 \, \Ulp (\appro {t}) \\
+& \leq |r \appro {\pi} / \appro {t}| \cdot 2^{\Exp (\appro {t})}
+     \cdot 0.637 \cdot 2^{-p} + 0.5 \, \Ulp (\appro {t}) \\
+& \leq \left( \max (|r \appro {\pi} / \appro {t}|, 1) \cdot 0.637
+              + 0.5 \right) \Ulp (\appro {t})
+  \text { by Definition~\ref {def:ulp}}.
+\end {align*}
+The factor $|r \appro {\pi} / \appro {t}|$ is larger than~$1$ only if
+rounding down has occurred for $|\appro {t}|$ by at most \ulp {0.5};
+with $p \geq 7$, the worst case bound is then $64.5/64$,
+and the absolute error is bounded by $1.15 \, \Ulp (\appro {t})$.
+
+The result is now obtained as
+\[
+\appro {s} + \appro {c} \, i
+\text { with }
+\appro {s} = \round (\sin (\appro {t}))
+\text { and }
+\appro {c} = \round (\cos (\appro {t})),
+\]
+rounded to nearest.
+By \eqref {eq:proprealcos}, the absolute error for the real part satisfies
+\begin {align*}
+|\appro {s} - \corr {s}|
+& \leq \left( 1.15 \cdot 2^{\Exp (\appro {t}) - \Exp (\appro {s})}
+   + 0.5 \right) \, \Ulp (\appro {s}) \\
+& \leq \left( 1.15 \cdot 2^{3 - \Exp (\appro {s})} + 0.5 \right)
+   \, \Ulp (\appro {s}) \text { since } \Exp (\appro {t}) \leq 3 \\
+& \leq 2^{4 - \Exp (\appro {s})} \, \Ulp (\appro {s})
+   \text { since } \Exp (\appro {s}) \leq 0,
+\end {align*}
+and the analogous bound holds for the imaginary part.
+
+If $n$ is large and $k$ close to a multiple of $n/4$, then $c$ or $s$
+can become small, and we lose about as many bits as given by the exponent
+of $s$ or $c$. The exact minimum of $s$ and~$c$ depends on the residue
+class of $n$ modulo~$4$. To simplify the argument, we consider the $4 n$-th
+roots of unity, which contain the $n$-th ones, and which are symmetrically
+distributed with respect to the real and imaginary axes. Then the smallest
+absolute value of the real or imaginary part is given by
+$\sin (2 \pi / (4 n))$. Using $\sin (x) > x - x^3 / 6$ for $x > 0$
+we obtain $\Exp (\appro {s}) \geq -63$ for $n < 2^{64}$; otherwise said,
+the number of bits lost during the computation is at most $67$ in this
+case, and in general at most $3$ more than the number of bits in~$n$.
+
+
+\subsection {\texttt {mpc\_cmp\_abs}}
+
+Let $z_1 = x_1 + i y_1$ and $z_2 = x_2 + i y_2$. We want to check whether
+$|z_1|$ and $|z_2|$ are equal and, if not, which of them
+is smaller; equivalently (and more efficiently), we may compare their squares
+$x_1^2 + y_1^2$ and $x_2^2 + y_2^2$.
+The following algorithm is obviously correct, but it is a priori not clear
+when it terminates:
+\begin {enumerate}
+\item
+Replace all real and imaginary parts in the $z_k$, $k \in \{ 1, 2 \}$, by their
+absolute values, and potentially swap the real and imaginary parts so that
+$0 \leq x_k \leq y_k$.
+\item
+If $y_1 = y_2$, return the comparison of the real floating point values
+$x_1$ and $x_2$, and analogously if $x_1 = x_2$.
+\item
+Otherwise, compute $n_1 = \round (x_1^2 + y_1^2)$ and
+$n_2 = \round (x_2^2 + y_2^2)$, rounded down, at low precision.
+If $n_1 < n_2$, then $|z_1| < |z_2|$;
+if $n_1 > n_2$, then $|z_1| > |z_2|$.
+The remaining case is $n_1 = n_2$.
+If then $n_1$ is exact (that is, it equals $|z_1|^2$) and $n_2$ is inexact
+(that is, it has been rounded down from $|z_2|^2$), then $|z_1| < |z_2|$;
+if $n_1$ is inexact and $n_2$ is exact, then $|z_1| > |z_2|$;
+if both are exact, then $|z_1| = |z_2|$.
+If both are inexact, one cannot conclude and needs to increase the precision
+and start from the beginning of this step.
+\end {enumerate}
+
+\begin {lemma}
+If $p$ is the maximum precision of $x_1$, $y_1$, $x_2$ and $y_2$, then the
+previous algorithm terminates as soon as the working precision $p'$ satisfies
+$p' \geq 4p$.
+So if the precision is doubled after each iteration, the algorithm has a
+quasi-linear complexity.
+\end {lemma}
+
+\begin {proof}
+We assume that the algorithm has not terminated after the third step with a
+working precision of $p' \geq 4p$, that is, $n_1 = n_2$ and neither
+$n_1$ nor $n_2$ has been computed exactly, and derive a contradiction.
+
+If any of $x_1$, $y_1$, $x_2$ or $y_2$ equals~$0$, then the algorithm has
+either finished in the second step, or the corresponding norm is computed
+exactly already at precision $2p < p'$, a contradiction.
+So the case of interest is that these four input values are non-zero.
+Then write $z_k = 2^{e_k} (x_k' + i 2^{d_k} y_k')$ with integers
+$x_k'$ and $y_k'$ satisfying $2^{p-1} \leq x_k', y_k' < 2^p$, and
+furthermore $d_k \geq 0$ since $y_k \geq x_k$.
+We have
+$n_k = 2^{2 e_k} \round (m_k)$ with the integer
+$m_k = (x_k')^2 + 2^{2 d_k} (y_k')^2$.
+If any of the exponent differences satisfies $d_k \leq p$, then
+$m_k < 2^{4 p} \leq 2^{p'}$, and $n_k$ is computed exactly at precision~$p'$,
+a contradiction.
+
+So $d_1$, $d_2 > p$. The integer $m_k$, read from the lowest to the most
+significant bits, consists of $(x_k')^2$ encoded with $2 p$ bits (with
+potentially a leading bit~$0$), followed by $2 d_k - 2 p \geq 2$ bits~$0$,
+followed by $(y_k')^2$ encoded with $2 p$ bits (with potentially one leading
+bit~$0$).
+So the $2 p$ most significant bits of $m_k$, excluding leading
+bits~$0$, have the following shape:
+If $y_k' > \sqrt 2 \cdot 2^{p-1}$, they encode exactly $(y_k')^2$.
+If $y_k' < \sqrt 2 \cdot 2^{p-1}$, the $2 p - 1$ leading bits encode
+$(y_k')^2$, and they are followed by a digit~$0$, so the $2 p$ leading
+bits encode $2 (y_k')^2$.
+
+Since $n_1 = n_2$, in particular their leading $2 p$ bits coincide;
+so either $(y_1')^2 = (y_2')^2$, $(y_1')^2 = 2 (y_2')^2$ or
+$2 (y_1')^2 = (y_2')^2$, where the last two cases are impossible
+for integers.
+Comparing exponents of the $n_k$ yields
+$e_1 + d_1 = e_2 + d_2$, so $y_1 = y_2$,
+a contradiction since the algorithm has proceeded beyond the second step.
+\end {proof}
+
+
+\subsection{\texttt {mpc\_agm}}
+\label {ssec:agm}
+
+\paragraph {Definition.}
+Let $a$, $b$ be non-zero complex numbers.
+Define sequences of arithmetic means $(a_n)$
+and geometric means $(b_n)$
+by $\corr {a_0} = a$, $\corr {b_0} = b$,
+$\corr {a_{n+1}} = \frac {\corr {a_n} + \corr {b_n}}{2}$ and
+$\corr {b_{n+1}} = \sqrt {\corr {a_n} \corr {b_n}}$.
+At each step, there is a choice of sign for the square root.
+If $\corr {a_n}$ and $\corr {b_n}$ form an (unoriented) angle
+different from $0$ and $\pi$, then
+they define a two-dimensional pointed cone in the complex plane.
+Notice that $\corr {a_{n+1}}$ lies in this cone.
+Following \cite {Cox84} we call \emph {right} the choice that makes
+also $\corr {b_{n+1}}$ lie in the cone, and following \cite {CrTh13}
+we call the resulting sequences \emph {optimal}.
+(An equivalent definition is that $|a_{n+1} - b_{n+1}| < |a_{n+1} + b_{n+1}|$.)
+There is a common limit of the sequences, the
+\emph {arithmetic-geometric mean}
+$\AGM (a, b)$.
+
+It is immediate that $\AGM$ is symmetric, that is,
+$\AGM (a, b) = \AGM (b, a)$, and homogeneous, that is,
+$\AGM (\lambda a, \lambda b) = \lambda \AGM (a, b)$ for any non-zero
+complex number $\lambda$.
+
+So we may assume that $|a| \geq |b|$, and
+$\AGM (a, b) = a \AGM (a_0, b_0)$
+with $\corr {a_0} = 1$, $\corr {b_0} = b/a$, $|\corr {b_0}| \leq 1$.
+
+We need to examine the corner cases.
+If one or both of $a$ and $b$ are zero, all geometric means are zero,
+and $\AGM (a, b) = 0$.
+If the angle between $a$ and $b$ is~$0$, then $\corr {b_0}$ is a positive real
+number, and $\AGM (1, \corr {b_0})$ may be computed with \mpfr.
+If the angle between $a$ and $b$ is $\pi$, then $\corr {b_0}$ is in
+$[-1,0)$. The arithmetic mean of $1$ and $-1$
+is zero, so $\AGM (1, -1) = 0$.
+If $\corr {b_0} > -1$, we take the first geometric mean with a positive imaginary
+part, so that also $\Im (\AGM (1, \corr {b_0}))$ will be positive.
+Notice that $\Im (\AGM (1, \corr {b_0}))$ has the same sign as
+$\Im (\corr {b_0})$ unless
+$\corr {b_0}$ is real, so this choice determines our branch cut for $\AGM$.
+
+So in the following, we analyse the computation of $\AGM (1, \appro {b_0})$
+with
+$\appro {b_0} = \round (\corr {b_0})$
+for $b_0$ in the unit disk centered at the origin (except $-1$ and $1$),
+where the real and imaginary parts of $\appro {b_0}$ are rounded
+towards~$0$,
+which ensures $\left| \Re (\appro {b_0}) \right| < 1$
+and $| \appro {b_0} | \leq 1$
+with absolute errors of the real and imaginary parts at most \ulp {1}.
+In the following, relative errors will be most convenient to work with;
+by Proposition~\ref {prop:comabstorelerror} we have
+$\relerror (\appro {b_0}) \leq 2^{1-p}$, where $p \geq 2$ is the working precision.
+
+
+\paragraph {Warm-up --- a note on angle~$0$.}
+
+As said, when the angle between $a$ and $b$ is~$0$, which is immediately
+detected from $\Im (\appro {b_0}) = 0$ (computed at any precision),
+then $\AGM (a, b) = a \AGM (1, b_0)$ with a real number $0 < b_0 < 1$.
+We need to consider the error induced by computing
+$\round \left( a \cdot \round \left( \AGM (1, \appro {b_0}) \right) \right)$
+instead.
+
+Recall that $b_0 = (1 + \theta) \appro {b_0}$ with
+$- \epsilon \leq \theta \leq \epsilon = 2^{1-p}$.
+Since for positive real numbers each step of the AGM is increasing in
+each of the two arguments, so is the AGM itself, and we have
+\[
+\AGM (1, b_0)
+= \AGM \left( 1, (1 + \theta) \appro {b_0} \right)
+\leq \AGM \left( 1 + \epsilon, (1 + \epsilon) \appro {b_0} \right)
+\leq (1 + \epsilon) \AGM \left( 1, \appro {b_0} \right).
+\]
+By the same kind of argument
+\[
+\AGM (1, b_0) \geq (1 - \epsilon) \AGM \left( 1, \appro {b_0} \right).
+\]
+So the relative error of at most $\epsilon$ in the input $\appro {b_0}$
+is preserved by the AGM.
+
+By Proposition~\ref {prop:relerror} applied to non-representable numbers
+and Proposition~\ref {prop:expround} this relative error translates into
+an absolute error satisfying
+\[
+\left| \AGM (1, b_0) - \AGM \left( 1, \appro {b_0} \right) \right|
+\leq 2 \cdot 2^{\Exp \left( \AGM \left( 1, \appro {b_0} \right) \right)
+   - p}
+\leq 2 \cdot 2^{\Exp \left( \round \left(
+   \AGM \left( 1, \appro {b_0} \right) \right) \right) - p}
+\]
+of at most~\ulp {2} of the rounded value, and the final rounding of the
+\texttt {mpfr\_agm} function leads to a total error bounded by~\ulp {3}.
+
+We multiply this value by the exact~$a$; applying \eqref {eq:proprealmul}
+with $k_1 = 3$ and $k_2 = 0$ and taking the final rounding into account
+leads to an error of at most~\ulp {7} for the real and for the imaginary
+parts of the complex AGM.
+
+
+\paragraph {The first iteration --- entering a quadrant.}
+If $\Re (\appro {b_0}) < 0$, then significant cancellation can occur for the
+arithmetic mean in the first iteration, which thus needs to be analysed
+separately.
+
+From now on, we use arbitrary rounding modes and apply
+Proposition~\ref {prop:comrelround} with $c = 1$.
+We let $\corr {b_1} = \sqrt {\corr {b_0}}$ and
+$\appro {b_1} = \round \left( \sqrt {\appro {b_0}} \right)$ with
+\[
+\relerror (\appro {b_1}) \leq
+2^{1-p} + \left( 1 + 2^{1-p} \right) 2^{1-p}
+\leq (\sqrt 2)^3 \cdot 2^{1-p}
+\]
+by \eqref {eq:propsqrt} (where we use $\epsilon \leq \epsilon_1$
+since $\epsilon_1 \leq 2^{1-p} \leq 1$, $\epsilon_1$ being the relative
+error on $\appro{b_0}$)
+and Proposition~\ref {prop:comrelround},
+and where we have bounded $2 + 2^{1-p} \leq 2.5$
+by $(\sqrt 2)^3 \approx 2.83$.
+We let $\corr {a_1} = 1/2 + \corr {b_0}/2$ and
+$\appro {a_1} = \round ( 1/2 + \appro{b_0}/2 )$.
+The imaginary part of $\appro {a_1}$ has an error of at most \ulp{1},
+and the same holds for the real part if $\Re (\appro {b_0}) = 0$
+or equivalently $\Re (b_0) = 0$;
+the real part of $\appro {a_1}$
+has an absolute error bounded by
+\[
+\max \left( 2, 2^{- \Exp (\Re (\appro {a_1})) - 1} \right)
+\Ulp \left( \Re (\appro {a_1}) \right).
+\]
+Indeed, let $x$ be the real part of $\appro{b_0}$, and $y$ the real part of $\appro{a_1}$,
+we have $y = \round (1/2 + x/2)$.
+Remember that $-1 < x < 1$. If $-1/2 \leq x < 1$, then $x/2 \geq -1/4$ and
+$y \geq 1/4$, and $\Exp (y) \geq \Exp (x/2)$, and from
+\S\ref{sssec:propadd} the error on $y$ is at most 2 ulp (one from the
+error on $x/2$, and one from the addition).
+If on the other hand $-1 < x < -1/2$, then $1/2 + x/2$ is exact by
+Sterbenz's lemma, and the only error
+comes from that on $x/2$, which by \S\ref{sssec:propadd} is bounded above by
+$2^{\Exp(x/2)-\Exp(y)} \Ulp (x/2)$.
+Since $-1/2 < x/2 < -1/4$, we have $\Exp(x/2)=-1$ and the above result follows.
+This bound also holds when $\Re (b_0) = 0$.
+So by Proposition~\ref {prop:comabstorelerror},
+\[
+\relerror (\appro {a_1})
+\leq
+\max \left( 2, 2^{- \Exp (\Re (\appro {a_1})) -1 } \right) \cdot 2^{1-p}.
+\]
+If $\Re (\appro {b_0}) \geq 0$, then $\Exp (\Re (\appro {a_1})) \geq 0$, and
+we obtain a bound that is similar to the one above for
+$\relerror (\appro {b_1})$. If $\appro {b_0}$ approaches $-1$,
+the relative error in $\appro {a_1}$ becomes arbitrarily bad, as
+$\appro {a_1}$ becomes arbitrarily small.
+
+\noindent
+Letting
+\begin {equation}
+\label {eq:agmk1}
+k_1 = \max \big( 3, - 2 \Exp (\Re (\appro {a_1})) - 2 \big)
+\end {equation}
+we obtain an upper bound of
+\begin {equation}
+\label {eq:agmerr1}
+\relerror (\appro {a_1}), \relerror (\appro {b_1})
+\leq
+\left( \sqrt 2 \right)^{k_1} \cdot 2^{1-p}
+\end {equation}
+on the loss of precision in the first iteration.
+
+Notice that, independently of the rounding mode,
+$\appro {a_1}$ and $\appro {b_1}$ lie in the same complex quadrant
+of numbers having non-negative real part and an imaginary part of the same
+sign as that of $\appro {b_0}$
+(or of positive imaginary part if $\appro {b_0}$ is real).
+During the remainder of the algorithm, we will not leave this quadrant
+and thus not see any more cancellation in the arithmetic mean.
+
+\begin{figure}[htp]
+% Sage code to produce the figure:
+% var('t')
+% p1=parametric_plot([1/2+cos(t)/2,sin(t)/2],(t,0,pi))
+% p2=list_plot([(real(sqrt(cos(t*pi/100)+i*sin(t*pi/100))),imag(sqrt(cos(t*pi/100)+i*sin(t*pi/100)))) for t in range(100)])
+% (p1+p2).save("iter1.pdf")
+\centerline{\includegraphics[width=5cm]{iter1.pdf}}
+  \caption{Extremal (from above) values of $a_1$ (solid curve) and
+    $b_1$ (dotted curve) after the first iteration of the AGM for
+    $\Im (b_0) \geq 0$.
+    The values are bounded from below by the $x$-axis.}
+\end{figure}
+
+\paragraph {The idea of the analysis.}
+
+Let us first give the basic idea of the following, rather technical
+analysis.
+Assume a target precision of $N$ bits, that is, a target relative error
+of about $2^{-N}$. If $a_0$ and $b_0$ are of the same order of magnitude, the AGM
+iteration converges quadratically, that is, the number of correct digits
+doubles in each step, and we need about $\log_2 N$ iterations.
+Unfortunately, when $a_0$ and $b_0$ are of different orders of magnitude, we have
+slower convergence. To illustrate this, consider $a_0 = 1$ and
+$b_0 = 2^{-e}$; during the first
+iterations, $a_n \approx 2^{-n}$ and $b_n \approx 2^{-e/2^n}$. So we need
+to increase the number of iterations by roughly $\log_2$ of the absolute
+value of the exponent of $b_0/a_0$; the precise bound
+$B \left( N, \appro {b_0}, \appro {a_1} \right)$ on
+the number of iterations is given in~\eqref {eq:agmbound}.
+Moreover, when $\Re (b/a) < 0$, the situation of very different exponents
+in $a$ and $b$ may occur after one iteration through cancellation as
+explained above.
+
+Unlike Newton iterations, AGM iterations are not auto-correcting:
+due to rounding errors, we lose a constant number of bits per iteration;
+so to reach the desired precision of $N$ bits, we need to carry out all
+computations at a working precision of
+$p \in N + O \left( B (N, \appro {b_0}, \appro {a_1}) \right)$.
+The following discussion provides explicit bounds for all these quantities.
+
+
+\paragraph {Rounding error propagation.}
+
+Let
+$\corr {a_n} = \frac {\corr {a_{n-1}} + \corr {b_{n-1}}}{2}$,
+$\corr {c_n} = \corr {a_{n-1}} \corr {b_{n-1}}$,
+$\corr {b_n} = \sqrt {\corr {c_n}}$.
+The computation of $\appro {a_1}$ and $\appro {b_1}$ and their error
+analysis have been given above.
+For $n \geq 2$, we compute the sequences
+\begin {eqnarray*}
+\appro {a_n}
+& = & \round \left( \frac {\appro {a_{n-1}} + \appro {b_{n-1}}}{2} \right), \\
+\appro {c_n}
+& = & \round \left( \appro {a_{n-1}} \appro {b_{n-1}} \right), \\
+\appro {b_n}
+& = & \round \left( \sqrt {\appro {c_n}} \right).
+\end {eqnarray*}
+Then one sees by induction that
+$\appro {a_n}$ and $\appro {b_n}$ lie in the same quadrant as
+$\appro {a_1}$ and $\appro {b_1}$
+(or, for that matter, $\corr {a_1}$ and $\corr {b_1}$).
+
+Let $\alpha_n = \relerror (\appro {a_n})$,
+$\gamma_n = \relerror (\appro {c_n})$ and
+$\beta_n = \relerror (\appro {b_n})$.
+
+\noindent
+By \eqref {eq:propaddrel} and Proposition~\ref {prop:comrelround},
+\begin {equation}
+\label {eq:agmalpha}
+\alpha_n \leq
+\sqrt 2 \, \max (\alpha_{n-1}, \beta_{n-1})
+\left( 1 + 2^{1-p} \right) + 2^{1-p}.
+\end {equation}
+By \eqref {eq:propmulrel} and Proposition~\ref {prop:comrelround},
+\begin {equation}
+\label {eq:agmgamma}
+\gamma_n \leq
+\left( \alpha_{n-1} + \beta_{n-1} + \alpha_{n-1} \beta_{n-1} \right)
+\left( 1 + 2^{1-p} \right) + 2^{1-p}.
+\end {equation}
+By \eqref {eq:propsqrt} and Proposition~\ref {prop:comrelround},
+\begin {equation}
+\label {eq:agmbeta}
+\beta_n \leq
+\frac {1}{\sqrt 3} \, \gamma_n (1 + 2^{1-p}) + 2^{1-p}
+\text { if } \gamma_n \leq \frac {1}{4}.
+\end {equation}
+
+Let $r_n = \left( (\sqrt 2)^{n+1} - 1 \right) r_1$ for some integer $r_1$
+such that $\alpha_1$, $\beta_1 \leq r_1 2^{1-p}$.
+We may use $r_1 = (\sqrt 2)^{k_1}$ with $k_1$ as in \eqref {eq:agmk1},
+so that $r_n \leq (\sqrt 2)^{n + k_1 + 1}$.
+We now show by induction that
+$\alpha_n, \beta_n \leq r_n 2^{1-p}$
+if the number $n$ of iterations is not too large compared to
+the working precision $p$.
+For $n=1$, this follows from \eqref {eq:agmerr1} and the definition
+of~$r_1$.
+
+As a preparation for the induction step and taking the shape
+of~\eqref {eq:agmalpha} to~\eqref {eq:agmbeta} into account, we carry out
+the following computation for $n \geq 2$, $p \geq 2$,
+$\frac {289 (\sqrt 2 + 1)}{512} \leq \gamma \leq 2$
+(we will only need $\gamma \in \{ \sqrt 2, 2 \}$ later) and
+$0 \leq \delta \leq 1$ (we will only need $\delta \in \{ 0, 1 \}$):
+\[
+\begin {aligned}
+R (n, \gamma, \delta) &:=
+  \left( \gamma r_{n-1} + \delta r_{n-1}^2 \, 2^{1-p} \right)
+   \left( 1 + 2^{1-p} \right) + 1 \\
+& = \left( \gamma + \delta r_{n-1} \, 2^{1-p} \right) r_{n-1} + 1
+   + 2^{1-p} \left( \gamma r_{n-1} + \delta r_{n-1}^2 \, 2^{1-p} \right) \\
+& \leq \left( \gamma + \delta (\sqrt 2)^{n + k_1 + 2 - 2 p} \right) r_{n-1}
+   + 1 +
+   2^{1-p} \left( (\sqrt 2)^{n + k_1 + 2} + 2^{n + k_1 + 1 - p} \right).
+\end {aligned}
+\]
+So assuming $p \geq \frac {n + k_1 + 10}{2}$ we have
+\begin {eqnarray*}
+R (n, \gamma, \delta)
+& \leq & \left( \gamma + \delta (\sqrt 2)^{-8} \right) r_{n-1}
+   + 289/256 \\
+& \leq & \frac {\left( \gamma + \delta (\sqrt 2)^{-8} \right)}{\sqrt 2}
+   \, r_n + 289/256
+   - \frac {\left( \gamma + \delta (\sqrt 2)^{-8} \right)}{\sqrt 2}
+   \left( r_n - \sqrt 2 \, r_{n-1} \right) \\
+& \leq & \frac {\left( \gamma + \delta (\sqrt 2)^{-8} \right)}{\sqrt 2}
+   \, r_n + 289/256
+   - \frac {\left( \gamma + \delta (\sqrt 2)^{-8} \right)}{\sqrt 2}
+   \left( \sqrt 2 - 1 \right) (\sqrt 2)^3 \\
+&&   \text { since } r_1 \geq (\sqrt 2)^3 \\
+& \leq & \left( \frac {\gamma}{\sqrt 2} + \frac {\delta}{16 \sqrt 2} \right)
+   \, r_n
+   \text { since } \delta \geq 0
+   \text { and } \gamma \geq \frac {289 (\sqrt 2 + 1)}{512}.
+\end {eqnarray*}
+
+\noindent
+Using the induction hypothesis for $n \geq 2$ on \eqref {eq:agmalpha}
+and \eqref {eq:agmgamma}
+yields
+\begin {eqnarray*}
+\alpha_n
+& \leq & R (n, \sqrt 2, 0) \, 2^{1-p} \leq r_n 2^{1-p}, \\
+\gamma_n
+& \leq & R (n, 2, 1) \, 2^{1-p}
+\leq \sqrt 2 \cdot \frac {33}{32} \cdot r_{n-1} \, 2^{1-p} \\
+& \leq &
+\sqrt 6 \, r_{n-1} \, 2^{1-p} \\
+& \leq &
+4 \cdot (\sqrt 2)^{n + k_1} \cdot (\sqrt 2)^{- (n_1 + k_1 + 8)}
+= 1/4.
+\end {eqnarray*}
+So \eqref {eq:agmbeta} is valid, and substituting $\gamma_n$ by its
+upper bound $\sqrt 6 \, r_{n-1} \, 2^{1-p}$ yields
+\begin {eqnarray*}
+\beta_n
+& \leq & R (n, \sqrt 2, 0) \, 2^{1-p}
+\leq r_n 2^{1-p}.
+\end {eqnarray*}
+
+\noindent
+To summarise, we compute in iteration~$n$ approximations $\appro {a_n}$
+and $\appro {b_n}$ to~$a_n$ and~$b_n$ with a relative error bounded above by
+\begin {equation}
+\label {eq:agmprec}
+2^{\frac {n + k_1 + 3}{2} - p}
+\text { assuming that the working precision satisfies }
+p \geq \frac {n + k_1}{2} + 5.
+\end {equation}
+
+
+\paragraph {Mathematical error.}
+
+We also need to estimate the error made by carrying out only a finite number
+of iterations. Let $z$ satisfy $\Re (z) \geq 0$ and $z \neq 0, 1$, and
+consider the optimal AGM sequences $(a_n')$ and $(b_n')$ computed (with
+infinite precision) from $a_0' = 1$ and $b_0' = z$. Let $N' \in \N$ and
+\[
+n \geq B' (N', z)
+  := \max \left( 1, \left\lceil \log_2 \big| \log_2 |z| \big|
+     \right\rceil \right)
+        + \lceil \log_2 (N'+2) \rceil + 2
+\]
+(where $\log_2 0$ is to be understood as $- \infty$).
+Then by \cite[Prop.~3.3, p.~88]{Dupont06},
+\[
+a_n' = (1 + \theta_2) \AGM (1, z)
+\text { with }
+|\theta_2| \leq 2^{-N'}.
+\]
+(Notice that here, the relative error as defined in
+\cite[Def.~1.2, p.~20]{Dupont06} is taken with the roles of the correct
+and the approximated values reversed compared to our definition.)
+
+In our context, we may have $\Re (\corr {b_0}) < 0$, but after one iteration,
+$\Re (\corr {b_1} / \corr {a_1}) \geq 0$. So we consider
+$\corr {z} = b_0' = \corr {b_1} / \corr {a_1}$, so that by
+homogeneity, $\corr {a_{n+1}} = \corr {a_1} a_n'$,
+$\corr {b_{n+1}} = \corr {a_1} b_n'$ and
+$\AGM (1, \corr {b_0}) = \AGM (\corr {a_1}, \corr {b_1})
+= \corr {a_1} \AGM (1, \corr {z})$.
+Thus we need bounds on
+\[
+|z|
+= \left| \frac {\corr {b_1}}{\corr {a_1}} \right|
+= \frac {|\sqrt {\corr {b_0}}|}{|\corr {a_1}|}.
+\]
+Since we have to decide on the number of iterations from approximations
+to $b_0$ and $a_1$ instead of the correct values, we may wish to replace
+$b_0$ by $\appro {b_0}$ and $a_1$ by $\appro {a_1}$. (In fact the
+arguments will be quite delicate and switch between the different
+quantities.)
+The relative errors derived above on $\appro {b_0}$ of
+$2^{1-p}$ and on $\appro {a_1}$ of $(\sqrt 2)^{k_1} \, 2^{1-p}$ with
+$p \geq k_1 / 2 + 5 \geq 5$ show that
+\[
+\left( 1 - 2^{-4} \right) \left| \appro {b_0} \right|
+\leq |b_0|
+\leq \left( 1 + 2^{-4} \right) \left| \appro {b_0} \right|
+\text { and }
+\left( 1 - 2^{-4} \right) \left| \appro {a_1} \right|
+\leq |a_1|
+\leq \left( 1 + 2^{-4} \right) \left| \appro {a_1} \right|.
+\]
+Since $\appro {b_0} = \round (b_0)$ with both parts rounded towards zero,
+we even have $\left| \appro {b_0} \right| \leq |b_0|$.
+Altogether we have the (much coarser) following bounds:
+\begin {equation}
+\label {eq:agmabsb0a1}
+\left| \appro {b_0} \right|
+\leq |b_0|
+\leq \sqrt 2 \, \left| \appro {b_0} \right|
+\text { and }
+\frac {1}{\sqrt 2} \, \left| \appro {a_1} \right|
+\leq |a_1|
+\leq \sqrt 2 \, \left| \appro {a_1} \right|.
+\end {equation}
+
+The quantity of interest is a (double) logarithm, so it is helpful to
+consider the (easily available) exponents of the numbers.
+Since $\appro {b_0} = \round ({b_0})$ with both parts rounded towards zero
+we have
+\begin {equation}
+\label {eq:agmexpb0}
+\Exp (\Re (\appro {b_0})) = \Exp (\Re (b_0))
+\text { and }
+\Exp (\Im (\appro {b_0})) = \Exp (\Im (b_0)).
+\end {equation}
+Recall that
+$\appro {a_1} = \round \left( \frac {1 + \appro {b_0}}{2} \right)$ so that
+$\Im (\appro {a_1}) = \Im (\appro {b_0}) / 2$ does not require any
+additional rounding; together with \eqref {eq:agmexpb0} this yields
+\begin {equation}
+\label {eq:agmexpima1}
+\Exp (\Im (\appro {a_1})) = \Exp (\Im (\appro {b_0})) - 1
+= \Exp (\Im (b_0)) - 1 = \Exp (\Im (a_1)).
+\end {equation}
+However
+$\Re (\appro {a_1}) = \round (1 + \round (\Re (b_0))) / 2$
+is computed with two roundings, so it takes a bit more work to relate
+it to $\Re (a_1) = (1 + \Re (b_0)) / 2$, which we postpone to the
+following case distinction since we do not need a completely general
+result.
+
+The above bound~$B'$ for the required number of iterations~$n$ grows with
+$\big| \log_2 |z| \big|$, so problematic situations may occur when $|z|$
+is either very large or very small; the former may happen when $|b_0|$ is
+large and/or $|a_1|$ is small, the latter when $|b_0|$ is small and/or
+$|a_1|$ is large.
+Remember that in our setting we have the bounds
+\[
+|b_0| \leq 1 \text {, so that }
+|a_1| = \left| \frac {b_0 + 1}{2} \right| \leq 1.
+\]
+thus interesting situations can occur only when either
+$|b_0|$ is small or $|a_1|$ is small, that is, $b_0$ is close to $-1$;
+and both cannot happen simultaneously. This leads to the following
+case distinction:
+\begin {enumerate}
+\item
+Assume $\Exp (\Re (\appro {b_0})), \Exp (\Im (\appro {b_0})) \leq -1$.
+
+By~\eqref {eq:agmexpb0} this is equivalent to
+$\Exp (\Re (b_0)), \Exp (\Im (b_0)) \leq -1$, whence
+$\Re (b_0), \Im (b_0) < 1/2$ and
+\[
+|b_0| \leq \frac {\sqrt 2}{2} < 1.
+\]
+This implies
+\[
+1 - \frac {\sqrt 2}{2} \leq 2 |a_1| \leq 1 + \frac {\sqrt 2}{2}
+\text { and }
+1/8 \leq |a_1| \leq 1
+\]
+and we know $|\sqrt {b_0}| \geq \left| \sqrt {\appro {b_0}} \right|$
+by \eqref {eq:agmabsb0a1}. Collecting these upper and lower bounds,
+we obtain for $z = \sqrt {b_0} / a_1$ that
+\[
+\sqrt {\left| \appro {b_0} \right|} \leq |z| \leq 8
+\text { and }
+\big| \log_2 |z| \big| \leq
+\max \left(
+3, - \frac {1}{2} \, \log_2 \left| \appro {b_0} \right|
+\right).
+\]
+
+Using the estimate
+\[
+\left| \appro {b_0} \right|
+\geq \max \left( |\Re (\appro {b_0})|, |\Im (\appro {b_0})| \right)
+\geq
+2^{\max \left( \Exp (\Re (\appro {b_0})), \Exp (\Im (\appro {b_0})) \right)
+- 1}
+\]
+we finally obtain
+\begin {equation}
+\label {eq:agmlb}
+\big| \log_2 |z| \big| \leq
+\max \left(
+3, - \frac {1}{2} \,
+\max \left( \Exp (\Re (\appro {b_0})), \Exp (\Im (\appro {b_0})) \right)
++ \frac {1}{2}
+\right).
+\end {equation}
+
+\item
+Assume $\Exp (\Im (\appro {b_0})) \leq -1$ and
+$\Exp (\Re (\appro {a_1})) \leq -2$.
+
+By~\eqref {eq:agmexpima1} the first condition implies
+$\Exp (\Im (a_1)) \leq -2$ or $|\Im (a_1)| < 1/4$.
+The second condition together with the first inequality of
+Proposition~\ref {prop:expround} implies that
+$\Exp \left( (1 + \Re (\appro {b_0})) / 2 \right) \leq -2$,
+or $\left| 1 + \Re (\appro {b_0}) \right| < 1/2$.
+So in fact $-1 < \Re (\appro {b_0}) < -1/2$, and then
+$-1 < \Re (b_0) < -1/2$ as well. This in turn implies
+$0 < \Re (a_1) < 1/4$.
+
+Putting these together, we obtain
+\[
+1/2 \leq |\Re (b_0)| \leq |b_0|
+\text { or }
+1 / \sqrt 2 \leq |\sqrt {b_0}|,
+\text { and }
+|a_1| \leq \sqrt 2 / 4,
+\]
+and we already know
+\[
+|b_0| \leq 1 \text { or } |\sqrt {b_0}| \leq 1
+\]
+from our general setting and
+\[
+|a_1| \geq |\appro {a_1}| / \sqrt 2
+\]
+by~\eqref {eq:agmabsb0a1}, whence
+\[
+2 \leq |z| \leq \frac {\sqrt 2}{|\appro {a_1}|}
+\text {and }
+\big| \log_2 |z| \big| \leq
+- \log_2 \left| \appro {a_1} \right| + \frac {1}{2}.
+\]
+Using the estimate
+\[
+\left| \appro {a_1} \right|
+\geq \max \left( |\Re (\appro {a_1})|, |\Im (\appro {a_1})| \right)
+\geq
+2^{\max \left( \Exp (\Re (\appro {a_1})), \Exp (\Im (\appro {a_1})) \right)
+- 1}
+\]
+and~\eqref {eq:agmexpima1} we finally obtain
+\begin {equation}
+\label {eq:agmla}
+\big| \log_2 |z| \big| \leq
+- \max \left( \Exp (\Re (\appro {a_1})), \Exp (\Im (\appro {b_0})) - 1 \right)
++ \frac {3}{2}.
+\end {equation}
+
+\item
+In the remaining case, since we are not in~(a), at least one of
+$\Exp \left( \Re (\appro {b_0}) \right)$ and
+$\Exp \left( \Im (\appro {b_0}) \right)$,
+or equivalently by~\eqref {eq:agmexpb0} at least one of
+$\Exp (\Re (b_0))$ and $\Exp (\Im (b_0))$
+is~$0$ or larger, so that
+\[
+\frac {1}{2} \leq \max (|\Re (b_0)|, |\Im (b_0)|)
+\leq |b_0| \leq 1 \text { and }
+\frac {1}{\sqrt 2} \leq \sqrt {|b_0|} \leq 1.
+\]
+If $\Exp \left( \Im (\appro {b_0}) \right) \geq 0$, then
+$\Exp (\Im (a_1)) \geq -1$ by~\eqref {eq:agmexpima1}
+and
+\[
+|a_1| \geq |\Im (a_1)| \geq 1/4.
+\]
+Otherwise since we are not in~(b),
+$\Exp (\Re (\appro {a_1})) \geq -1$ or
+$|\Re (\appro {a_1})| \geq 1/4$;
+as it is known to be positive in fact
+$\Re (\appro {a_1}) \geq 1/4$.
+In precision at least~$5$, the value $1/4 \cdot 31/32$
+is representable and smaller than~$1/4$ so that the value rounded
+to $\Re (\appro {a_1})$ satisfies
+$(1 + \Re (\appro {b_0})) / 2 > 31/128$ and
+$\Re (\appro {b_0}) > -33/64$.
+In precision at least~$5$, the value $-34/64$
+is representable and smaller than~$-33/64$ so that the unrounded
+value satisfies
+$\Re (b_0) > -17/32$,
+which implies $\Re (a_1) > 15/64 > 1/8$ and
+\[
+|a_1| \geq |\Re (a_1)| \geq 1/8.
+\]
+We also know $|a_1| \leq 1$ in our general setting.
+Altogether
+\begin {equation}
+\label {eq:agml}
+\frac {1}{\sqrt 2} \leq |z| \leq 8
+\text { and }
+\big| \log_2 |z| \big| \leq 3.
+\end {equation}
+\end {enumerate}
+
+
+Letting $L (\appro {b_0}, \appro {a_1})$ denote the above bound on
+$|\log_2 |z||$ depending on the exponents occurring in $\appro {b_0}$
+and $\appro {a_1}$, and counting the additional first iteration to compute
+$\appro {a_1}$ and $\appro {b_1}$, not present in the above analysis,
+we fix a number of iterations~$n$ such that
+$n \geq B (N, \appro {b_0}, \appro {a_1})$ with
+\begin{equation}
+\label{eq:agmbound}
+B (N, \appro {b_0}, \appro {a_1})
+= \max \left( 1,
+   \left\lceil \log_2 L (\appro {b_0}, \appro {a_1}) \right\rceil \right)
++ \lceil \log_2 (N+4) \rceil + 3.
+\end{equation}
+Then
+\[
+\corr {a_n} = (1 + \theta_2) \AGM (1, \corr {b_0})
+\text { with }
+|\theta_2| \leq 2^{-(N+2)}.
+\]
+
+
+\paragraph {Total error and working precision.}
+
+Combining with \eqref {eq:agmprec}, we obtain for a sufficiently large
+precision~$p$ and sufficiently many iterations~$n$ that
+$\AGM (1, b_0) = \frac {1 + \theta_1}{1 + \theta_2} \appro {a_n}
+= (1 + \theta) \appro {a_n}$ with
+$|\theta_1| \leq 2^{\frac {n + k_1 + 3}{2} - p}$ and
+$|\theta_2| \leq 2^{-(N+2)}$, so that
+\[
+|\theta| \leq \frac {|\theta_1| + |\theta_2|}{|1 - |\theta_2||}
+\leq \frac {4}{3} \, \left( 2^{\frac {n+k_1+3}{2}-p} + 2^{-(N+2)} \right)
+\]
+for $N \geq 2$.
+So after $n = B (N, \appro {b_0}, \appro {a_1})$ steps of the AGM iteration
+at a working precision of
+$p \geq N + \frac {n + k_1 + 7}{2} \geq \frac {n + k_1 + 10}{2}$,
+we obtain $\appro {a_n}$ which approximates $\AGM (1, b_0)$ with a
+relative error bounded by $\frac {2}{3} \cdot 2^{-N}$.
+
+Finally, we let $\corr {z} = \AGM (a, b) = a \AGM (1, \corr {b_0})$ and
+$\appro {z} = \round (\corr {a} \appro {a_n})$, where $a$ is known
+exactly.
+By~\eqref {eq:propmulrel} and Proposition~\ref {prop:comrelround},
+using that $N \geq 2$ and $k_1 \geq 3$ imply
+$n = B (N, \appro {b_0}, \appro {a_1}) \geq 7$ and
+$p \geq N + 8 \geq 10$,
+this leads to a relative error bounded by $2^{-N}$.
+
+
+\paragraph {Summary.}
+
+In our analysis, the working precision~$p$ depends on
+\[
+k_1 = \max (3, - 2 \Exp (\Re (\appro {a_1})) - 2)
+\]
+of~\eqref {eq:agmk1}, which in turn depends not only on the input data,
+but also on the working precision of the first AGM iteration. It is not
+enough to carry out this computation at arbitrarily low precision:
+Since $\appro {b_0}$ is computed as $a / b$ or $b / a$ depending on the
+respective sizes of the numbers and it is rounded, the computation
+of $\Re (\appro {a_1})$ requires double rounding, which may even lead to a
+wrong exponent if the precision is too low. Precisely, the exponent of
+$\Re (\appro {a_1})$ may only be wrong if $\Re (\appro {b_0})$ is so close
+to~$-1$ that it is rounded towards zero to $-1$ plus \ulp {1}, that is,
+$\Re (\appro {b_0}) = - (1 - 2^{-p})$. Then
+$\Re (\appro {a_1}) = 2^{- p - 1}$ with $\Exp (\Re (\appro {a_1})) = -p$
+has lost all information on $\Re (b_0)$ and reflects only the rounding
+error. In all other cases a significant digit is retained and the exponent
+is correct. So $k_1$ may be computed by increasing the precision for
+this precomputation until $\Exp (\Re (\appro {a_1})) > -p$.
+
+Then we fix a desired accuracy~$N$ (around the target precision plus a
+safety margin), compute $L (\appro {b_0}, \appro {a_1})$
+by~\eqref {eq:agmlb}, \eqref {eq:agmla} or~\eqref {eq:agml} and
+the number of iterations
+$n = B (N, \appro {b_0}, \appro {a_1})$ by~\eqref {eq:agmbound}
+(more often than not, this will result in $n = \lceil \log_2 N \rceil + 5$).
+Then the working precision is given by
+\[
+p = N + \left\lceil \frac {n + k_1 + 7}{2} \right\rceil.
+\]
+
+Using Propositions~\ref {prop:comrelerror} and~\ref {prop:relerror}, the
+complex relative error of~$2^{-N}$ may be translated into an error
+expressed in $\Ulp$.
+With $\appro {z} = \appro x + i \appro y$
+the computed approximation of $\corr {z} = \AGM (a, b)$, let
+$k_R = \max (\Exp (\appro y) - \Exp (\appro x) + 1, 0) + 1$, and
+$k_I = \max (\Exp (\appro x) - \Exp (\appro y) + 1, 0) + 1$.
+Then we have
+$\error (\appro x) \leq 2^{k_R + p - N} \Ulp (\appro x)$ and
+$\error (\appro y) \leq 2^{k_I + p - N} \Ulp (\appro y)$.
+
+In practice, one should take this additional loss into account.
+If rounding fails after the first computation, nevertheless the values of
+$k_R$ and $k_I$ will most likely not change with a larger precision.
+So one should let $k' = \max (k_R, k_I)$, replace $N$ by $N + k'$
+and adapt the number of iterations and the working precision accordingly.
+
+The number of iterations is also slightly pessimistic in practice,
+in particular the additional constant in~\eqref {eq:agmbound}.
+So the computations may be stopped earlier if the numbers occurring in
+the AGM iterations do not change any more, since then additional
+iterations will fix the result.
+
+
+
+
+\section {Complex ball arithmetic}
+
+We propose a simple implementation of complex balls, which keep track of
+rounding errors over several operations.
+The originality of our implementation is that it uses complex relative
+errors as in \S\ref {sssec:comrelerror}. A complex ball of type
+\texttt {mpcb\_t} is defined by a non-zero centre~$c$ of type
+\texttt {mpc\_t} and a relative radius~$r$ of type~\texttt {mpcr\_t},
+and it represents all complex numbers~$z = c (1 + \theta)$ with
+$|\theta| \leq r$, or equivalently the closed circle with centre~$c$ and
+radius $r |c|$.
+In the following, we use the notation $(c, r)$ for this complex ball.
+
+The radius type represents the non-negative real half-axis from~$0$
+to~$\infty$, including this special infinite number. It is implemented
+internally as a non-negative floating point value with a signed 64~bit
+integer mantissa~$m$, normalised to 31 bits, so that two mantissas may be
+multiplied without rounding. The sign is used to encode $r = \infty$
+a zero mantissa encodes~$0$, otherwise a mantissa is always positive.
+The exponent is encoded as a 64~bit integer~$e$ such that (for finite radii)
+$r = m \cdot 2^e$ with $0 \leq m < 2^{31}$.
+In most applications a radius $r \geq 1$ will be meaningless, so that
+in practice we will almost always have $e \leq -31$, or $r = \infty$.
+
+Mathematical functions are then understood to work on sets and to ``round
+up'': They return a complex ball containing the set obtained by applying
+the function to every combination of arguments from the input balls.
+Reasonable efforts are made to return small balls, but there is no
+guarantee that the returned ball is minimal.
+
+In any case, the centre of the resulting ball is obtained by applying
+the corresponding MPC function on the centres of the input balls with
+rounding to nearest. The analyses of \ref {sec:algorithms} then provide
+upper bounds on the radius.
+
+Compared to a representation decomposed along the real and imaginary parts,
+with separate relative or absolute errors, which leads to rectangles
+instead of circles, our representation simplifies multiplicative operations
+and makes additive operations more complicated. Determining branch cuts,
+which often depend on the decomposition of a complex number into real and
+imaginary parts, are probably also made more complicated.
+The biggest drawback is that intervals centred in~$0$ may not be
+represented at all. More generally, intervals containing~$0$ are also
+not meaningful: They correspond to balls with $r \geq 1$, which means that
+even the most significant digit of the centre is uncertain.
+
+
+\subsection {Crossing the axes}
+
+\begin {center}
+\begin {tikzpicture}
+\draw [->](-1,0) -- (4,0);
+\draw [->](0,-1) -- (0,3);
+\draw (2,1) circle (1.5);
+\draw (1.95,0.95) -- (2.05,1.05) node [above]{$c = x + i y$};
+\draw (1.95,1.05) -- (2.05,0.95);
+\draw (2,-0.05) -- (2,0.05) node [below]{$x$};
+\end {tikzpicture}
+\end {center}
+
+To correctly evaluate functions at branch cuts, it may be useful to examine
+how complex balls are positioned with respect to the axes.
+As already mentioned above, a ball $(c, r)$ contains the origin if and only
+if $r \geq 1$.
+
+For $c = x + i y$, it crosses (or touches) the real axis if and only if
+it contains the point~$x$, which means that
+\[
+|x - c| \leq r |c|
+\Leftrightarrow |y| \leq r |c|
+\Leftrightarrow y^2 \leq r^2 \left( x^2 + y^2 \right)
+\Leftrightarrow \left(1 - r^2 \right) y^2 \leq r^2 x^2.
+\]
+When does a complex ball touch the real axis?
+This means that $(1 - r^2) y^2 = r^2 x^2$, which happens obviously when
+$r = 0$ and $y = 0$, so that the ball is a point located on the real axis;
+or when $r = 1$ and $x = 0$, so that the ball is centred on the imaginary
+axis and touches the origin. All other cases are actually impossible with
+machine-representable numbers. Assuming otherwise, recall that $x$, $y$
+and $r$ are rational numbers with denomitor a power of~$2$.
+If $r$ is an integer, then it is either~$1$, which we already covered;
+or larger, and then the origin is contained in the interior of the ball,
+which must cross the real axis.
+So let $r = a / 2^n$ with $a$ an odd integer and $n \geq 1$. Then
+$4^n - a^2 = 4^n (1 - r^2) = (2^{-n} r x y^{-1})^2$ is the square of an
+odd integer. But all odd squares are~$1$ modulo~$4$, whereas the left-hand
+side is~$3$ modulo~$4$, a contradiction.
+
+Symmetrically, the complex ball $(x + i y, r)$ crosses (or touches) the
+imaginary axis if and only if
+\[
+\left(1 - r^2 \right) x^2 \leq r^2 y^2.
+\]
+It touches the imaginary axis if and only if $r = 0$ and $x = 0$, so that
+the ball is a point on the imaginary axis; or $r = 1$ and $y = 0$, so that
+the ball is centred on the real axis and touches the origin.
+
+The ball has a common point with the negative real axis (including the
+origin) if and only if either $x \leq 0$ and the ball has a common point
+with the real axis (since then $x$ is such a common point); or $x > 0$
+and the ball contains the origin.
+
+
+\subsection {\texttt {mpc\_agm}}
+
+Implementing the AGM (see \S\ref {ssec:agm}) for complex balls would
+require to check whether the input crosses the negative real axis, where
+we have placed the branch cut (which is inherited from the branch cut
+of the complex square root). However if the input is a complex number,
+which can be considered to be exact, then an implementation using complex
+balls can obtain a correctly rounded result with a greatly simplified
+analysis compared to~\S\ref {ssec:agm}.
+
+In a first step, assuming that $|a| \geq |b|$, we compute
+$b_0 = b / a$ as a complex ball centred around $\appro {b_0}$.
+
+If $\Im (\appro {b_0}) = 0$, then the angle between~$a$ and~$b$
+is~$0$ or~$\pi$. Regardless of the rounding direction, $\Re (\appro {b_0})$
+also has the same sign as $\Re (b_0)$. If $\Re (\appro {b_0}) > 0$,
+then the angle is~$0$ and the computation can be outsourced to a real AGM
+as described in~\S\ref {ssec:agm}.
+If $\Re (\appro {b_0}) < 0$, then the angle is~$\pi$, and the complex ball
+containing~$b_0$ crosses the negative real axis; the first step of the AGM
+with an implementation of \texttt {mpcb\_sqrt} that respects the branch cut
+would end up with a ball containing $\pm \sqrt {|b_0|} \cdot i$ and thus
+the origin, which is completely useless. We may, however, in this case use
+an implementation of the square root placing the branch cut differently and
+returning a ball centred at some approximation of $+ \sqrt {|b_0|} \cdot i$,
+and then continue with the AGM iterations.
+
+After~$n$ iterations starting from~$1$ and a ball around $b_0$, we end
+up with balls $(\appro {a_n}, r_a)$ and $(\appro {b_n}, r_b)$ such
+that the exact values satisfy $a_n = (1 + \theta_a) \appro {a_n}$
+with $|\theta_a| \leq r_a$ and $b_n = (1 + \theta_b) \appro {b_n}$
+with $|\theta_b| \leq r_b$.
+
+By \cite [p.87]{Dupont06} we have $|\AGM (1, b_0) - a_n| \leq |a_n - b_n|$.
+Plugging the expressions for~$a_n$ and~$b_n$ into this inequality yields
+\[
+|\AGM (1, b_0) - (1 + \theta_a) \appro {a_n}|
+\leq |\appro {a_n} - \appro {b_n}| + |\theta_a \appro {a_n}|
+   + |\theta_b \appro {b_n}|
+\]
+The lower triangle inequality gives
+\[
+|\AGM (1, b_0) - (1 + \theta_a) \appro {a_n}|
+\geq |\AGM (1, b_0) - \appro {a_n}| - |\theta_a| \cdot |\appro {a_n}|,
+\]
+and putting these inequalities together we obtain
+\[
+|\AGM (1, b_0) - \appro {a_n}|
+\leq
+\left( \left| \frac {\appro {a_n} - \appro {b_n}}{\appro {a_n}} \right|
+   + 2 |\theta_a| \right) |\appro {a_n}|
+   + |\theta_b| \cdot |\appro {b_n}|.
+\]
+Write $\appro {b_n} = (1 + \theta_{a,b}) \appro {a_n}$
+and $r_{a, b} = |\theta_{a,b}|$; then we obtain
+\[
+|\AGM (1, b_0) - \appro {a_n}|
+\leq
+\big( r_{a, b} + 2 r_a + r_b (1 + r_{a, b}) \big) |\appro {a_n}|
+\leq
+\big( 2 (r_{a, b} + r_a) + r_b \big) |\appro {a_n}|
+\text { if } r_b \leq 1.
+\]
+Otherwise said, $\AGM (1, b_0)$ is contained in the ball
+$\big( \appro {a_n}, r_{a, b} + 2 (r_a + r_b) \big)$, and multiplying
+this with the ball $(a, 0)$ we obtain a ball containing $\AGM (a, b)$.
+If this can be rounded to a unique MPC number with the desired rounding
+mode, then we have correctly computed $\texttt {mpc\_agm}$; otherwise we
+need to repeat the computations at a higher precision, and the exponent
+of the radius gives an indication on the necessary precision increase.
+
+In practice convergence of the sequences of $\appro {a_n}$ and
+$\appro {b_n}$ is often such that $\appro {a_n} = \appro {b_n}$ and thus
+$r_{a, b} = 0$.
+Otherwise the two generally differ by only \ulp {1}, and a very coarse
+estimate of $r_{a,b}$ as a power of~$2$
+\[
+r_{a, b} \leq
+2^{\max \left( \Exp (\Re (\appro {a_n} - \appro {b_n})),
+               \Exp (\Im (\appro {a_n} - \appro {b_n})) \right) + 1
+   - \left( \min \left( \Exp (\Re (\appro {a_n})), \Exp (\Im (\appro {a_n}))
+                 \right)
+            - 1 \right)}
+\]
+is enough, where $\Exp (0)$ is considered as $- \infty$.
+
+
+
+\subsection {Modular functions}
+
+\paragraph {Series for the Dedekind $\eta$-function.}
+
+Modular functions for $\Sl_2 (\Z)$ are often constructed starting from the
+Dedekind $\eta$-function or from Jacobi $\theta$-functions. For $z$ with
+$\Im (z) > 0$ the former is given by
+$q^{1/24} = e^{2 \pi i z / 24}$,
+$q = (q^{1/24})^{24}$ and
+\[
+\eta (z) = q^{1/24} \left( 1 + \sum_{i=1}^\infty (-1)^i
+   \left( q^{(3 i - 1) i / 2} + q^{(3 i + 1) i / 2} \right)
+\right)
+= q^{1/24} \sum_{n=0}^\infty a_n q^n
+\]
+with $a_0 = 1$,
+$a_n = 1$ if there is an even $i \geq 2$ such that
+$n = (3 i - 1) i / 2$ or $n = (3 i + 1) i / 2$,
+$a_n = -1$ if there is an odd $i \geq 1$ such that
+$n = (3 i - 1) i / 2$ or $n = (3 i + 1) i / 2$,
+and $a_n = 0$ otherwise.
+Since the transformation behaviour of $\eta$ under matrices of~$\Sl_2 (\Z)$
+is well-known, we may assume that $z$ lies in the standard fundamental
+domain for this modular group and satisfies $|\Re (z)| \leq 1/2$ and
+$|z| \geq 1$. Then $|q|$ admits its minimum $0.00433\ldots$ for
+$z = \frac {-1 + \sqrt {-3}}{2}$. In the following, we will only assume
+$|q| < 1/4$, which will generously account for rounding errors when
+transforming~$z$ into the fundamental domain and computing~$q$ from~$z$.
+
+We first examine the series without the factor $q^{1/24}$ and let
+\[
+E (q) = \sum_{n=0}^\infty a_n q^n.
+\]
+In practice, one needs to truncate this series after a finite number of
+terms, so we also have to consider
+\[
+E' (q) = \sum_{n=0}^N a_n q^n,
+\]
+where we may assume that $a_N \neq 0$, and let $M$ be the smallest exponent
+larger than~$N$ such that $a_M \neq 0$ again.
+
+Starting with a ball for $q$ such that $|q| < 1/4$ everywhere in the ball,
+we compute by ball arithmetic $\appro {E'}$ and $\epsilon'$ such that
+$E' = \appro {E'} (1 + \theta')$ with $|\theta'| \leq \epsilon'$, which
+accounts for the radius of the input ball for~$q$ as well as for rounding
+errors during the series evaluation.
+We also need to estimate the mathematical, truncation error, given by
+\[
+|E - E'|
+\leq \sum_{n = M}^\infty |q|^n
+= \frac {|q|^M}{1 - |q|}
+\leq \frac {4}{3} \cdot |q|^M
+\]
+since $|q| < 1/4$.
+To obtain a relative error, we use the lower bound
+\[
+|E'|
+\geq 1 - \sum_{n=1}^\infty |q|^n
+\geq 1 - \sum_{n=1}^\infty (1/4)^n
+= 2/3,
+\]
+so that altogether
+\[
+\left| \frac {E - E'}{E'} \right|
+\leq 2 \, |q|^M
+\leq 2^{M \Exp (|q|) + 1}.
+\]
+So we have $E = E' (1 + \theta_M)$ with
+$|\theta_M| \leq \epsilon_M = 2^{M \Exp (|q|) + 1}$.
+Putting the two estimates together, we obtain
+$E = \appro {E'} (1 + \theta_M) (1 + \theta')
+= \appro {E'} (1 + \theta)$
+with
+$|\theta| \leq \epsilon' + \epsilon_M + \epsilon' \epsilon_M$.
+So we obtain a ball for~$E$ by keeping the centre of~$\appro {E'}$
+and adapting the radius according to this formula.
+
+A ball for $\eta$ can then be obtained by multiplying the ball for
+$E$ by the ball for $q^{1/24}$.
+
+Notice that Jacobi $\theta$-functions are defined by a similar series
+as~$E$ with coefficients in $\{ 0, \pm 1 \}$, so that the same kind of
+analysis can be applied.
+
+
+\paragraph {From $z$ to $q$.}
+
+The previous section explains how to compute the $\eta$-function from its
+series given a ball for the Fourier transform~$q$ of its complex
+argument~$z$. Deducing an algorithm for computing $\eta$ on an MPC type
+argument with correct rounding requires an error analysis on the passage
+from an exact complex value~$z$ to $q = e^{2 \pi i z}$, or more precisely
+$q^{1/24} = e^{\pi i z / 12}$. Since in the main application (discussed in
+the next section) the argument~$z$ may itself be the result of a
+computation, we analyse more generally the case that $z = x + i y$ is given
+by an approximation $\appro z = \appro x + i \appro y$ with $\appro x$,
+$\appro y$ at the same precision~$p$ and with respective errors of
+$k_x \Ulp (\appro x)$ and $k_y \Ulp (\appro y)$.
+
+Since deriving error bounds for even the rather simple formula
+for~$q^{1/24}$ turns out to be surprisingly lengthy, we start by
+summarising the algorithm; particular choices for rounding modes will be
+explained during the later analysis:
+\[
+\begin {array}{ll}
+w = \pi i z / 12 = u + i v
+   & \appro u = - \round (\round (\round (\pi) / 12) \appro y)
+     \text { with all roundings down,} \\
+   & \text {so that $\appro u$ is rounded up} \\
+   & \appro v = \round (\round (\round (\pi) / 12) \appro x)
+     \text { rounded arbitrarily} \\
+t = \exp (u)
+   & \appro t = \round (\exp (\appro u)) \text { rounded up} \\
+r = \cos (v)
+   & \appro r = \round (\cos (\appro v)) \text { rounded towards zero} \\
+s = \sin (v)
+   & \appro s = \round (\sin (\appro v)) \text { rounded away from zero} \\
+q^{1/24} = \exp (w) = a + i b
+   & \appro a = \round \left( \appro t \appro r \right)
+     \text { with arbitrary rounding} \\
+   & \appro b = \round \left( \appro t \appro s \right)
+     \text { with arbitrary rounding}
+\end {array}
+\]
+
+Since we are eventually interested in $z$ lying in the fundamental domain
+for $\Sl_2 (\Z)$, we may assume $|x| \leq 1/2$.
+At precision larger than~$3$, it is reasonable to assume that
+$|\appro x| \leq 5/8$, which should be checked at the beginning of the
+algorithm.
+So that the algorithm really obtains an upper bound
+$\appro u \geq u$, we also need to assume that $\appro y$ has been
+computed with rounding down (or towards zero, since it is positive),
+so that $\appro y \leq y$.
+For reasons that will become clear later we also assume a minimal
+precision~$p$ such that $2^p \geq 240 + 66 k_x$.
+In particular this implies $p \geq 8$.
+
+We also need to get an exact case out of the way.
+When $x = 0$, we assume that this is detected and that $\appro x = x = 0$
+has been obtained exactly without error.
+Then $\appro v = v = 0$, $\appro r = r = 1$ and $\appro s = s = 0$
+exactly, and $q^{1/24} = t$ is real.
+So in this case the error analysis of $\appro t$ below directly carries
+over, and when analysing $\appro v$, $\appro r$ and $\appro s$ below
+we will assume that we are not in this case.
+(The cases $|x| = 1/2$ and $|x| = 1/4$ are also particular: In the former,
+$q$ is real, in the latter, $q$ is purely imaginary; but
+$q^{1/24}$ is not, so it has to be computed by the generic algorithm.)
+
+The rounded-down value of $\pi$ is obtained with an error of \ulp{1}.
+Division by the exact constant~$12$ at most doubles the error in ulp
+by~\eqref {eq:proprealdiv}, and the final rounding down results in an
+error of at most \ulp{3}. Multiplication by~$\appro y$ and rounding down
+leads by~\eqref {eq:proprealmul} to a total error of
+\[
+\error (\appro u)
+\leq \big( 1 + 2 (3 + k_y) + 3 k_y 2^{2-p} \big) \Ulp (\appro u)
+=    \big( 7 + (2 + 12 \cdot 2^{-p}) k_y \big) \Ulp (\appro u).
+\]
+For $\appro v$ we obtain an analogous bound with $k_y$ replaced by $k_x$.
+(One could also recompute $\pi / 12$ with rounding to nearest,
+or even precompute the constant $\pi / 12$ itself, potentially
+with a higher precision than~$p$ to obtain an arbitrarily low error,
+but we will stick with the simpler algorithm and use the same bound
+for $\appro u$ and $\appro v$, which will not make a big difference in
+the analysis.)
+
+For the next step we will want to express $\Exp (\appro u)$ in terms of
+$\Exp (\appro y)$. Already at precision~$3$ (and independently of the
+rounding mode), the constant $\pi$ is bounded by representable numbers
+as follows:
+$3 \leq \round (\pi) \leq 7/2$, so that
+$1/4 \leq \round (\round (\pi) / 12) \leq 5/16 < 1/2$,
+and these bounds can only become tighter at higher precision.
+This implies that
+$\Exp (\appro u) - \Exp (\appro y) \in \{ -2, -1 \}$.
+Also $|\appro x| \leq 5/8$ and $\round (\round (\pi) / 12) \leq 5/16$
+imply that $|\appro v| \leq \round (25/128) \leq 28/128 < 1/4$
+at precision~$3$ or higher (where $28$ is a representable floating point
+number above~$25$), or equivalently $\Exp (\appro v) \leq -2$.
+
+Working with an upper bound $\appro u \geq u$ and rounding $\appro t$ up
+implies $\appro t \geq t$, so that we can apply~\eqref {eq:proprealexp},
+which together with the error bound on $\appro u$ yields
+\begin {eqnarray*}
+\error (\appro t)
+& \leq &
+\left( 1 +
+\big( 7 + (2 + 12 \cdot 2^{-p}) k_y \big) \, 2^{\Exp (\appro u)}
+\right) \Ulp (\appro t) \\
+& \leq &
+\left( 1 +
+\big( 7/2 + (1 + 6 \cdot 2^{-p}) k_y \big) \, 2^{\Exp (\appro y)}
+\right) \Ulp (\appro t).
+\end {eqnarray*}
+For the trigonometric functions we use~\eqref {eq:proprealcos} and obtain,
+taking the final directed rounding into account, that
+\begin {eqnarray*}
+\error (\appro r) \leq
+\left( 1 +
+\big( 7 + (2 + 12 \cdot 2^{-p}) k_x \big) \,
+2^{\Exp (\appro v) - \Exp (\appro r)}
+\right) \Ulp (\appro r), \\
+\error (\appro s) \leq
+\left( 1 +
+\big( 7 + (2 + 12 \cdot 2^{-p}) k_x \big) \,
+2^{\Exp (\appro v) - \Exp (\appro s)}
+\right) \Ulp (\appro s).
+\end {eqnarray*}
+
+In the non-exact case (that is, when we do not have $\appro x = x = 0$ as
+discussed above) we use the bound $\Exp (\appro v) \leq -2$ and
+$1/2 < \cos (\appro v) < 1$ for $|\appro v| < 1/4$, so that
+$1/2 \leq \appro r < 1$ since we rounded towards zero,
+$\Exp (\appro r) = 0$ and
+\[
+\error (\appro r) \leq
+\left( 11/4 + (1/2 + 3 \cdot 2^{-p}) k_x \right) \Ulp (\appro r).
+\]
+
+Concerning the sine function, we consider without loss of generality the
+case that $\appro v > 0$ (the case $\appro v < 0$ is symmetric, since by
+rounding away from zero we chose a symmetric rounding mode).
+For $\appro v < 1/4$, we have $0 < \sin (\appro v) < \appro v$ and thus
+$0 < \appro s \leq \appro v$ since $\appro v$ is a representable upper bound.
+The function $\alpha \mapsto \frac {\alpha - \sin (\alpha)}{\alpha}$
+is strictly increasing for $0 < \alpha < 1/4$ with an upper limit of
+$1 - 4 \, \sin (1/4) < 1/2$ so that in this range
+$\sin (\alpha) > \alpha / 2$, which implies
+$\appro s \geq \sin (\appro v) > \appro v / 2$.
+In terms of exponents, these upper and lower bounds translate into
+$\Exp (\appro v) - \Exp (\appro s) \in \{ 0, 1 \}$. Thus
+\[
+\error (\appro s) \leq
+\left( 15 + (4 + 24 \cdot 2^{-p}) k_x \right) \Ulp (\appro s).
+\]
+
+Simplifying a bit further by replacing the constants in front of $2^{-p}$
+by the smallest powers of~$2$ above them and $2^{-p}$ by the upper
+bound $2^{-8}$, the current error bounds can be summarised as
+\begin {eqnarray*}
+\error (\appro t)
+& \leq & k_t \, \Ulp (\appro t)
+   \text { with } k_t =
+   1 + \big( 7/2 + (33/32) k_y \big) 2^{\Exp (\appro y)}, \\
+\error (\appro r)
+& \leq & k_r \, \Ulp (\appro r)
+   \text { with } k_r = 11/4 + (33/64) k_x, \\
+\error (\appro s)
+& \leq & k_s \, \Ulp (\appro s)
+   \text { with } k_s = 15 + (33/8) k_x.
+\end {eqnarray*}
+
+Now $q^{1/24} = a + i b$ is computed with two more multiplications
+(in the non-exact case); we write
+$\error (\appro a) = k_a \Ulp (\appro a)$ and
+$\error (\appro b) = k_b \Ulp (\appro b)$ and
+obtain by~\eqref {eq:proprealmul} and including the final rounding that
+\begin {eqnarray*}
+k_a
+& \leq & 1 + 2 k_t + 2 k_r + 4 k_t k_r \, 2^{-p} \\
+k_b
+& \leq & 1 + 2 k_t + 2 k_s + 4 k_t k_s \, 2^{-p}
+\end {eqnarray*}
+Plugging in the above bounds for $k_r$, $k_s$ and $k_t$, this yields
+longish polynomials in $k_x$, $k_y$, $2^{-p}$ and $2^{\Exp (\appro y)}$.
+For a more compact expression, we use the assumption
+$2^p \geq 16 k_s = 240 + 66 k_x \geq 64 k_r$
+to get rid of the second order error terms; indeed it implies that
+$4 k_s 2^{-p} \leq 1/4$ and $4 k_r 2^{-p} \leq 1/16$, so that we end up with
+\begin {equation}
+\label {eq:qfromz}
+\begin {aligned}
+k_a
+& \leq 1 + (33/16) k_t + 2 k_r \\
+& \leq \big( 231/32 + (1089/512) k_y \big) \, 2^{\Exp (\appro y)}
+         + \big( 137/16 + (33/32) k_x \big) \\
+& \leq \big( 8 + (5/2) k_y \big) \, 2^{\Exp (\appro y)}
+         + \big( 9 + 2 k_x \big) \\
+k_b
+& \leq 1 + (9/4) k_t + 2 k_s \\
+& \leq \big( 63/8 + (297/128) k_y \big) \, 2^{\Exp (\appro y)}
+         + \big( 133/4 + (33/4) k_x \big) \\
+& \leq \big( 8 + (5/2) k_y \big) \, 2^{\Exp (\appro y)}
+         + \big( 67/2 + 9 k_x \big)
+\end {aligned}
+\end {equation}
+
+Notice that in this expression we expect $k_x$ and $k_y$ to be very small
+(for a concrete example, see the following section), and
+$2^{\Exp (\appro y)} \approx \appro y$ to yield the dominant term.
+However, in practice this is also bounded:
+Since we are computing $\appro t$ as the exponential of $\appro u$, which
+is up to a small constant factor about $\appro y$, the value of
+$\appro y$ is bounded by roughly the maximal admissible exponent, which
+is around $2^{64}$; so every multiple of $2^{\Exp (\appro y)}$ in the
+formul{\ae} above amounts to a loss of at most $64$~bits of precision.
+In this case, the series for $\eta$ is essentially~$1$ and the value
+of~$\eta$ is essentially $q^{1/24}$, which is almost indistinguishable
+from~$0$.
+
+
+\paragraph {An exemplary setting for $z$.}
+
+The main application for computing the Dedekind $\eta$-function comes from
+what is called complex multiplication of elliptic curves. There $z$ is
+given as an imaginary-quadratic algebraic number, that is,
+$z = \frac {-B + \sqrt {D}}{2 A}$ with integers $A$ and $B$ and the
+discriminant $D < 0$, which satisfy furthermore
+$|B| \leq A \leq (B^2 - D) / (4 A)$.
+This implies $x = - B / (2A)$ with $|x| \leq 1/2$, and the case that
+$x = 0$ is easily detectable from $B = 0$; and it implies
+$y = \sqrt {|D|} / (2 A)$ and $|z| \geq 1$, so that $z$ lies in the
+fundamental domain as defined in the previous section.
+
+The errors in computing $\appro x$ and $\appro y$ from the integers
+$A$, $B$ and $D$ are readily estimated as follows. We assume that the
+precision is large enough so that all occurring integers are represented
+exactly.
+We compute $\appro x = \round (B / (2A))$ by dividing two representable
+numbers with an error in ulp of at most $k_x = 1/2$ when rounding to
+nearest; in precision at least~$3$ the condition $|x| \leq 5/8$ required
+in the previous section is satisfied automatically.
+For $\appro y$, first compute $\round \left( \sqrt {|D|} \right)$, rounded
+down, with an error of at most \ulp {1}. Dividing by the exact $2 A$ at
+most doubles the error by~\eqref {eq:proprealdiv}, and rounding down we
+end up with an error in ulp of at most $k_y = 3$.
+
+Plugging $k_x = 1/2$ and $k_y = 3$ into~\eqref {eq:qfromz}, the error
+when computing~$\appro {q^{1/24}}$ from this $\appro z$ is bounded by
+\begin {equation}
+\label {eq:qfromzcm}
+\begin {aligned}
+k_a & \leq (31/2) \cdot 2^{\Exp (\appro y)} + 10 \\
+k_b & \leq (31/2) \cdot 2^{\Exp (\appro y)} + 38
+\end {aligned}
+\end {equation}
+To get an idea on $2^{\Exp (\appro y)}$, notice that
+$y$ is bounded above by $\sqrt {|D|} / 2$ for $A = 1$.
+The largest $D$ treated with this approach in the literature is
+$D = -2093236031$\cite {Enge09}, for which
+$\Exp (\appro y) \leq 15$, so that
+$k_a, k_b \leq 2^{19}$, which corresponds to a loss of precision bounded
+by about $19$~bits.
+
+
+\nocite{Baudin11,Stewart85,Priest04,muller:hal-01766584,jeannerod:ensl-01780265}
 \bibliographystyle{acm}
 \bibliography{algorithms}
 

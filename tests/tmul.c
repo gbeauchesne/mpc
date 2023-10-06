@@ -1,6 +1,6 @@
 /* tmul -- test file for mpc_mul.
 
-Copyright (C) 2002, 2005, 2008, 2009, 2010, 2011, 2012 INRIA
+Copyright (C) 2002, 2005, 2008, 2009, 2010, 2011, 2012, 2013, 2014, 2020 INRIA
 
 This file is part of GNU MPC.
 
@@ -102,15 +102,15 @@ check_regular (void)
      imaginary part */
   mpc_set_prec (x, 7);
   mpc_set_prec (y, 7);
-  mpfr_set_str (mpc_realref (x), "0xB4p+733", 16, GMP_RNDN);
-  mpfr_set_str (mpc_imagref (x), "0x90p+244", 16, GMP_RNDN);
-  mpfr_set_str (mpc_realref (y), "0xECp-146", 16, GMP_RNDN);
-  mpfr_set_str (mpc_imagref (y), "0xACp-471", 16, GMP_RNDN);
+  mpfr_set_str (mpc_realref (x), "0xB4p+733", 16, MPFR_RNDN);
+  mpfr_set_str (mpc_imagref (x), "0x90p+244", 16, MPFR_RNDN);
+  mpfr_set_str (mpc_realref (y), "0xECp-146", 16, MPFR_RNDN);
+  mpfr_set_str (mpc_imagref (y), "0xACp-471", 16, MPFR_RNDN);
   cmpmul (x, y, MPC_RNDNN);
-  mpfr_set_str (mpc_realref (x), "0xB4p+733", 16, GMP_RNDN);
-  mpfr_set_str (mpc_imagref (x), "0x90p+244", 16, GMP_RNDN);
-  mpfr_set_str (mpc_realref (y), "0xACp-471", 16, GMP_RNDN);
-  mpfr_set_str (mpc_imagref (y), "-0xECp-146", 16, GMP_RNDN);
+  mpfr_set_str (mpc_realref (x), "0xB4p+733", 16, MPFR_RNDN);
+  mpfr_set_str (mpc_imagref (x), "0x90p+244", 16, MPFR_RNDN);
+  mpfr_set_str (mpc_realref (y), "0xACp-471", 16, MPFR_RNDN);
+  mpfr_set_str (mpc_imagref (y), "-0xECp-146", 16, MPFR_RNDN);
   cmpmul (x, y, MPC_RNDNN);
 
   for (prec = 2; prec < 1000; prec = (mpfr_prec_t) (prec * 1.1 + 1))
@@ -130,6 +130,34 @@ check_regular (void)
   mpc_clear (y);
 }
 
+static void
+bug20200206 (void)
+{
+  mpfr_exp_t emin = mpfr_get_emin ();
+  mpc_t x, y, z;
+
+  mpfr_set_emin (-1073);
+  mpc_init2 (x, 53);
+  mpc_init2 (y, 53);
+  mpc_init2 (z, 53);
+  mpfr_set_d (mpc_realref (x), -6.0344722345057644e-272, MPFR_RNDN);
+  mpfr_set_d (mpc_imagref (x), -4.8536770224196353e-204, MPFR_RNDN);
+  mpfr_set_d (mpc_realref (y), 1.3834775731431992e-246, MPFR_RNDN);
+  mpfr_set_d (mpc_imagref (y), 2.9246270396940562e-124, MPFR_RNDN);
+  mpc_mul (z, x, y, MPC_RNDNN);
+  if (mpfr_regular_p (mpc_realref (z)) &&
+      mpfr_get_exp (mpc_realref (z)) < -1073)
+    {
+      printf ("Error, mpc_mul returns an out-of-range exponent:\n");
+      mpfr_dump (mpc_realref (z));
+      printf ("Bug most probably in MPFR, please upgrade to MPFR 4.1.0 or later\n");
+      exit (1);
+    }
+  mpc_clear (x);
+  mpc_clear (y);
+  mpc_clear (z);
+  mpfr_set_emin (emin);
+}
 
 #ifdef TIMING
 static void
@@ -178,24 +206,66 @@ timemul (void)
 }
 #endif
 
+#define MPC_FUNCTION_CALL                                               \
+  P[0].mpc_inex = mpc_mul (P[1].mpc, P[2].mpc, P[3].mpc, P[4].mpc_rnd)
+#define MPC_FUNCTION_CALL_SYMMETRIC                                     \
+  P[0].mpc_inex = mpc_mul (P[1].mpc, P[3].mpc, P[2].mpc, P[4].mpc_rnd)
+#define MPC_FUNCTION_CALL_REUSE_OP1                                     \
+  P[0].mpc_inex = mpc_mul (P[1].mpc, P[1].mpc, P[3].mpc, P[4].mpc_rnd)
+#define MPC_FUNCTION_CALL_REUSE_OP2                                     \
+  P[0].mpc_inex = mpc_mul (P[1].mpc, P[2].mpc, P[1].mpc, P[4].mpc_rnd)
+
+#include "data_check.tpl"
+#include "tgeneric.tpl"
+
+static void
+bug20221130 (void)
+{
+  mpc_t b, c_conj, res, ref;
+  mpfr_prec_t prec;
+  mpc_init2 (b, 20);
+  mpc_init2 (c_conj, 20);
+  mpc_init2 (res, 2);
+  mpc_init2 (ref, 5);
+  mpc_set_str (b, "(0x1p+0 0x2p+0)", 16, MPC_RNDNN);
+  mpc_set_str (c_conj, "(-0xap+0 0x1.4p+4)", 16, MPC_RNDNN);
+  mpc_set_str (ref, "(-0x3.2p+4 0x0p+0)", 16, MPC_RNDNN);
+  for (prec = 5; prec <= 2000; prec++)
+  {
+    mpc_set_prec (res, prec);
+    mpc_mul (res, b, c_conj, MPC_RNDZZ);
+    if (mpc_cmp (res, ref) != 0 || mpfr_signbit (mpc_imagref (res)))
+    {
+      printf ("Error in bug20221130 for prec=%lu\n", prec);
+      mpfr_printf ("expected (%Ra %Ra)\n", mpc_realref (ref), mpc_imagref (ref));
+      mpfr_printf ("got      (%Ra %Ra)\n", mpc_realref (res), mpc_imagref (res));
+      exit (1);
+    }
+  }
+  mpc_clear (b);
+  mpc_clear (c_conj);
+  mpc_clear (res);
+  mpc_clear (ref);
+}
 
 int
 main (void)
 {
-  DECL_FUNC (C_CC, f, mpc_mul);
-  f.properties = FUNC_PROP_SYMETRIC;
-
   test_start ();
 
 #ifdef TIMING
   timemul ();
 #endif
 
+  bug20200206 ();
+  bug20221130 ();
   check_regular ();
 
-  data_check (f, "mul.dat");
-  tgeneric (f, 2, 4096, 41, 100);
+  data_check_template ("mul.dsc", "mul.dat");
+
+  tgeneric_template ("mul.dsc", 2, 4096, 41, 1024);
 
   test_end ();
+
   return 0;
 }

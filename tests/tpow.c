@@ -1,6 +1,6 @@
 /* tpow -- test file for mpc_pow.
 
-Copyright (C) 2009, 2011 INRIA
+Copyright (C) 2009, 2011, 2012, 2013 INRIA
 
 This file is part of GNU MPC.
 
@@ -34,8 +34,8 @@ reuse_bug (void)
        mpc_init2 (y, prec);
        mpc_init2 (z, prec);
    
-       mpfr_set_ui (mpc_realref (x), 0ul, GMP_RNDN);
-       mpfr_set_ui_2exp (mpc_imagref (x), 3ul, -2, GMP_RNDN);
+       mpfr_set_ui (mpc_realref (x), 0ul, MPFR_RNDN);
+       mpfr_set_ui_2exp (mpc_imagref (x), 3ul, -2, MPFR_RNDN);
        mpc_set_ui (y, 8ul, MPC_RNDNN);
 
        mpc_pow (z, x, y, MPC_RNDNN);
@@ -52,18 +52,61 @@ reuse_bug (void)
      }
 }
 
+/* at precision 53, mpc_pow gave (inf,-inf), and
+   at precision 73, it gave (inf,inf) */
+static void
+bug20200208 (void)
+{
+  mpc_t x, y, z, zr;
+  mpfr_prec_t prec1 = 53, prec2 = 73;
+
+  mpc_init2 (x, prec1);
+  mpc_init2 (y, prec1);
+  mpc_init2 (z, prec1);
+  mpc_init2 (zr, prec2);
+  mpfr_set_d (mpc_realref (x), 2.0851332234623992e-197, MPFR_RNDN);
+  mpfr_set_d (mpc_imagref (x), -5.6221457829327427e-17, MPFR_RNDN);
+  mpfr_set_d (mpc_realref (y), -2.1866902464899554e+138, MPFR_RNDN);
+  mpfr_set_d (mpc_imagref (y), 2.5932544562430328e-234, MPFR_RNDN);
+  mpc_pow (z, x, y, MPC_RNDNN);
+  mpc_pow (zr, x, y, MPC_RNDNN);
+  if (mpc_cmp (z, zr))
+    {
+      printf ("Inconsistent power with different precisions:\n");
+      mpfr_printf ("prec %lu: (%Re,%Re)\n",
+                   prec1, mpc_realref (z), mpc_imagref (z));
+      mpfr_printf ("prec %lu: (%Re,%Re)\n",
+                   prec2, mpc_realref (zr), mpc_imagref (zr));
+      exit (1);
+    }
+  mpc_clear (x);
+  mpc_clear (y);
+  mpc_clear (z);
+  mpc_clear (zr);
+}
+
+#define MPC_FUNCTION_CALL                                               \
+  P[0].mpc_inex = mpc_pow (P[1].mpc, P[2].mpc, P[3].mpc, P[4].mpc_rnd)
+#define MPC_FUNCTION_CALL_REUSE_OP1                                     \
+  P[0].mpc_inex = mpc_pow (P[1].mpc, P[1].mpc, P[3].mpc, P[4].mpc_rnd)
+#define MPC_FUNCTION_CALL_REUSE_OP2                                     \
+  P[0].mpc_inex = mpc_pow (P[1].mpc, P[2].mpc, P[1].mpc, P[4].mpc_rnd)
+
+#include "data_check.tpl"
+#include "tgeneric.tpl"
 
 int
 main (void)
 {
-  DECL_FUNC (C_CC, f, mpc_pow);
-
   test_start ();
+
+  bug20200208 ();
 
   reuse_bug ();
 
-  data_check (f, "pow.dat");
-  tgeneric (f, 2, 1024, 7, 10);
+  data_check_template ("pow.dsc", "pow.dat");
+
+  tgeneric_template ("pow.dsc", 2, 1024, 7, 10);
 
   test_end ();
 
