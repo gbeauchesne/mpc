@@ -221,6 +221,10 @@ AS_IF([test "x$enable_logging" = "xyes"],
        ]
      )
 
+# Propagate LDFLAGS
+EXTRA_LDFLAGS="$LDFLAGS"
+AC_SUBST(EXTRA_LDFLAGS)
+
 # Configs for Windows DLLs
 AC_SUBST(MPC_LDFLAGS)
 AC_LIBTOOL_WIN32_DLL

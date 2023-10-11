@@ -27,7 +27,7 @@ LDADD = libmpc-tests.la $(top_builddir)/src/libmpc.la
 # purpose is to make sure that the local .libs comes first in the library
 # search path (otherwise the tests are linked against the old MPC library
 # by the LINK command -- see the generated Makefile).
-AM_LDFLAGS = -no-install -L$(top_builddir)/src/.libs
+AM_LDFLAGS = -no-install -L$(top_builddir)/src/.libs $(EXTRA_LDFLAGS)
 # LOADLIBES (documented in the "GNU make" manual and equivalent to LDLIBS)
 # enables to compile a program foo.c in the test directory by simply doing
 # "make foo".
